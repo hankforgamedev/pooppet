@@ -11,20 +11,27 @@
 <title>便便雞</title>
 <style>
   :root{
-    --shell:#cfd8cf;      /* 浴室磁磚灰綠 */
-    --grout:#aab5ab;
+    --shell:#c3cec2;      /* 浴室磁磚灰綠 */
+    --grout:#9aa89a;
     --lcd:#9ab07f;        /* LCD 液晶底 */
     --lcd-dark:#6f8558;
     --ink:#1b2318;
     --btn:#e8e2d4;
     --hot:#d8543a;
+    --line:#232e1f;       /* 像素描邊，整個 UI 只用這一個黑 */
+    --sh:#8e998d;         /* 硬陰影，不做模糊 */
+    --ceramic:#f4f6f1;
+    --ceramic-dk:#cdd5cb;
+    /* 繁中不用像素字（會缺字），像素字只給英數 */
+    --pixel:'Press Start 2P','Courier New',monospace;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
   html,body{height:100%;overflow:hidden}
   body{
     background:var(--shell);
-    background-image:linear-gradient(var(--grout) 1px,transparent 1px),linear-gradient(90deg,var(--grout) 1px,transparent 1px);
-    background-size:44px 44px;
+    background-image:
+      repeating-linear-gradient(0deg,var(--grout) 0 3px,transparent 3px 44px),
+      repeating-linear-gradient(90deg,var(--grout) 0 3px,transparent 3px 44px);
     font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Helvetica Neue",sans-serif;
     color:var(--ink);
     display:flex;flex-direction:column;
@@ -32,125 +39,154 @@
     user-select:none;-webkit-user-select:none;
   }
 
-  header{display:flex;align-items:center;gap:8px;padding:12px 16px 8px}
-  .brand{font-weight:800;font-size:15px;letter-spacing:.16em}
-  .count{font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#5d685c;margin-left:auto}
-  .gear,.chili{width:34px;height:34px;border:none;background:rgba(0,0,0,.06);border-radius:10px;
-    font-size:15px;line-height:34px;text-align:center;cursor:pointer;padding:0;color:inherit}
-  .chili{filter:grayscale(1);opacity:.45}
-  .chili.on{filter:none;opacity:1;background:rgba(216,84,58,.18)}
+  header{display:flex;align-items:center;gap:12px;padding:14px 20px 12px}
+  .brand{font-weight:800;font-size:16px;letter-spacing:.2em;
+    text-shadow:2px 2px 0 var(--sh)}
+  .count{font-size:11px;font-weight:700;color:#4d584c;margin-left:auto;letter-spacing:.06em}
+  .count b{font-family:var(--pixel);font-size:10px;font-weight:400;margin-left:5px}
+  /* 像素方鈕：四個硬陰影做出缺角的描邊 */
+  .gear,.chili{width:30px;height:30px;border:none;border-radius:0;padding:0;color:inherit;
+    background:var(--btn);font-size:14px;line-height:30px;text-align:center;cursor:pointer;
+    box-shadow:0 -3px 0 var(--line),0 3px 0 var(--line),-3px 0 0 var(--line),3px 0 0 var(--line)}
+  .gear:active,.chili:active{background:var(--sh)}
+  .chili{filter:grayscale(1);opacity:.5}
+  .chili.on{filter:none;opacity:1;background:var(--hot)}
 
   /* 馬桶 —— 俯視角。白色陶瓷包著綠色的水，雞住在水裡 */
-  .device{flex:1;margin:0 14px;min-height:0;
+  .device{flex:1;margin:0 14px;min-height:0;position:relative;
     display:flex;flex-direction:column;align-items:center}
 
   /* 水箱 */
-  .tank{flex:none;width:56%;height:44px;
-    background:linear-gradient(#f8faf7,#dbe1db);
-    border-radius:16px 16px 7px 7px;
-    box-shadow:0 3px 0 #b2bbb2, inset 0 2px 0 rgba(255,255,255,.95);
-    position:relative}
-  /* 沖水鈕：故意做成內凹的陶瓷細節，不是可以按的東西 */
-  .flush{position:absolute;top:13px;left:50%;transform:translateX(-50%);
-    width:36px;height:15px;border-radius:8px;
-    background:linear-gradient(#e0e6df,#c9d1c9);
-    box-shadow:inset 0 2px 3px rgba(0,0,0,.24),0 1px 0 rgba(255,255,255,.8)}
+  .tank{flex:none;width:54%;height:40px;position:relative;
+    background:var(--ceramic);
+    box-shadow:0 -4px 0 var(--line),-4px 0 0 var(--line),4px 0 0 var(--line),
+               inset 0 -6px 0 var(--ceramic-dk)}
+  /* 沖水鈕：內凹的陶瓷細節，不是可以按的東西 */
+  .flush{position:absolute;top:12px;left:50%;margin-left:-18px;
+    width:36px;height:14px;background:var(--ceramic-dk);
+    box-shadow:inset 0 3px 0 rgba(0,0,0,.18),0 3px 0 var(--ceramic)}
 
-  /* 馬桶本體：上窄下寬的蛋形 */
-  .bowl{flex:1;width:100%;min-height:0;position:relative;margin-top:-7px;
-    padding:20px 20px 26px;display:flex;
-    background:linear-gradient(158deg,#f9fbf8,#d8dfd8);
-    border-radius:46% 46% 44% 44% / 33% 33% 57% 57%;
-    box-shadow:0 12px 0 #b0b9b0, 0 18px 30px rgba(0,0,0,.24),
-               inset 0 4px 0 rgba(255,255,255,.95),
-               inset 0 -10px 16px rgba(0,0,0,.06)}
+  /* 馬桶本體：階梯狀的蛋形，輪廓照著像素格走。
+     .rim 是深色描邊，.bowl 縮 4px 疊在上面，露出來的邊就是輪廓線。 */
+  .rim{flex:1;width:100%;min-height:0;margin-top:-4px;display:flex;padding:4px;
+    background:var(--line);clip-path:polygon(67.19% 0.00%,67.19% 3.12%,75.78% 3.12%,75.78% 6.25%,80.47% 6.25%,80.47% 9.38%,84.38% 9.38%,84.38% 12.50%,87.50% 12.50%,87.50% 15.62%,89.84% 15.62%,89.84% 18.75%,92.19% 18.75%,92.19% 21.88%,93.75% 21.88%,93.75% 25.00%,94.53% 25.00%,94.53% 28.12%,96.09% 28.12%,96.09% 31.25%,96.88% 31.25%,96.88% 34.38%,97.66% 34.38%,97.66% 37.50%,98.44% 37.50%,98.44% 40.62%,98.44% 40.62%,98.44% 43.75%,99.22% 43.75%,99.22% 46.88%,99.22% 46.88%,99.22% 50.00%,99.22% 50.00%,99.22% 53.12%,100.00% 53.12%,100.00% 56.25%,100.00% 56.25%,100.00% 59.38%,100.00% 59.38%,100.00% 62.50%,100.00% 62.50%,100.00% 65.62%,100.00% 65.62%,100.00% 68.75%,99.22% 68.75%,99.22% 71.88%,98.44% 71.88%,98.44% 75.00%,97.66% 75.00%,97.66% 78.12%,96.09% 78.12%,96.09% 81.25%,94.53% 81.25%,94.53% 84.38%,92.19% 84.38%,92.19% 87.50%,89.84% 87.50%,89.84% 90.62%,85.94% 90.62%,85.94% 93.75%,80.47% 93.75%,80.47% 96.88%,70.31% 96.88%,70.31% 100.00%,29.69% 100.00%,29.69% 96.88%,19.53% 96.88%,19.53% 93.75%,14.06% 93.75%,14.06% 90.62%,10.16% 90.62%,10.16% 87.50%,7.81% 87.50%,7.81% 84.38%,5.47% 84.38%,5.47% 81.25%,3.91% 81.25%,3.91% 78.12%,2.34% 78.12%,2.34% 75.00%,1.56% 75.00%,1.56% 71.88%,0.78% 71.88%,0.78% 68.75%,0.00% 68.75%,0.00% 65.62%,0.00% 65.62%,0.00% 62.50%,0.00% 62.50%,0.00% 59.38%,0.00% 59.38%,0.00% 56.25%,0.00% 56.25%,0.00% 53.12%,0.78% 53.12%,0.78% 50.00%,0.78% 50.00%,0.78% 46.88%,0.78% 46.88%,0.78% 43.75%,1.56% 43.75%,1.56% 40.62%,1.56% 40.62%,1.56% 37.50%,2.34% 37.50%,2.34% 34.38%,3.12% 34.38%,3.12% 31.25%,3.91% 31.25%,3.91% 28.12%,5.47% 28.12%,5.47% 25.00%,6.25% 25.00%,6.25% 21.88%,7.81% 21.88%,7.81% 18.75%,10.16% 18.75%,10.16% 15.62%,12.50% 15.62%,12.50% 12.50%,15.62% 12.50%,15.62% 9.38%,19.53% 9.38%,19.53% 6.25%,24.22% 6.25%,24.22% 3.12%,32.81% 3.12%,32.81% 0.00%)}
+  .bowl{flex:1;min-height:0;position:relative;display:flex;
+    padding:16px 20px 24px;
+    background:var(--ceramic);
+    clip-path:polygon(67.19% 0.00%,67.19% 3.12%,75.78% 3.12%,75.78% 6.25%,80.47% 6.25%,80.47% 9.38%,84.38% 9.38%,84.38% 12.50%,87.50% 12.50%,87.50% 15.62%,89.84% 15.62%,89.84% 18.75%,92.19% 18.75%,92.19% 21.88%,93.75% 21.88%,93.75% 25.00%,94.53% 25.00%,94.53% 28.12%,96.09% 28.12%,96.09% 31.25%,96.88% 31.25%,96.88% 34.38%,97.66% 34.38%,97.66% 37.50%,98.44% 37.50%,98.44% 40.62%,98.44% 40.62%,98.44% 43.75%,99.22% 43.75%,99.22% 46.88%,99.22% 46.88%,99.22% 50.00%,99.22% 50.00%,99.22% 53.12%,100.00% 53.12%,100.00% 56.25%,100.00% 56.25%,100.00% 59.38%,100.00% 59.38%,100.00% 62.50%,100.00% 62.50%,100.00% 65.62%,100.00% 65.62%,100.00% 68.75%,99.22% 68.75%,99.22% 71.88%,98.44% 71.88%,98.44% 75.00%,97.66% 75.00%,97.66% 78.12%,96.09% 78.12%,96.09% 81.25%,94.53% 81.25%,94.53% 84.38%,92.19% 84.38%,92.19% 87.50%,89.84% 87.50%,89.84% 90.62%,85.94% 90.62%,85.94% 93.75%,80.47% 93.75%,80.47% 96.88%,70.31% 96.88%,70.31% 100.00%,29.69% 100.00%,29.69% 96.88%,19.53% 96.88%,19.53% 93.75%,14.06% 93.75%,14.06% 90.62%,10.16% 90.62%,10.16% 87.50%,7.81% 87.50%,7.81% 84.38%,5.47% 84.38%,5.47% 81.25%,3.91% 81.25%,3.91% 78.12%,2.34% 78.12%,2.34% 75.00%,1.56% 75.00%,1.56% 71.88%,0.78% 71.88%,0.78% 68.75%,0.00% 68.75%,0.00% 65.62%,0.00% 65.62%,0.00% 62.50%,0.00% 62.50%,0.00% 59.38%,0.00% 59.38%,0.00% 56.25%,0.00% 56.25%,0.00% 53.12%,0.78% 53.12%,0.78% 50.00%,0.78% 50.00%,0.78% 46.88%,0.78% 46.88%,0.78% 43.75%,1.56% 43.75%,1.56% 40.62%,1.56% 40.62%,1.56% 37.50%,2.34% 37.50%,2.34% 34.38%,3.12% 34.38%,3.12% 31.25%,3.91% 31.25%,3.91% 28.12%,5.47% 28.12%,5.47% 25.00%,6.25% 25.00%,6.25% 21.88%,7.81% 21.88%,7.81% 18.75%,10.16% 18.75%,10.16% 15.62%,12.50% 15.62%,12.50% 12.50%,15.62% 12.50%,15.62% 9.38%,19.53% 9.38%,19.53% 6.25%,24.22% 6.25%,24.22% 3.12%,32.81% 3.12%,32.81% 0.00%)}
 
   /* 水面 */
-  .screen{flex:1;position:relative;overflow:hidden;
+  .screen{flex:1;position:relative;z-index:1;overflow:hidden;
     background:var(--lcd);
-    border-radius:47% 47% 45% 45% / 34% 34% 57% 57%;
-    box-shadow:inset 0 5px 16px rgba(0,0,0,.4);}
+    clip-path:polygon(67.19% 0.00%,67.19% 3.12%,75.78% 3.12%,75.78% 6.25%,80.47% 6.25%,80.47% 9.38%,84.38% 9.38%,84.38% 12.50%,87.50% 12.50%,87.50% 15.62%,89.84% 15.62%,89.84% 18.75%,92.19% 18.75%,92.19% 21.88%,93.75% 21.88%,93.75% 25.00%,94.53% 25.00%,94.53% 28.12%,96.09% 28.12%,96.09% 31.25%,96.88% 31.25%,96.88% 34.38%,97.66% 34.38%,97.66% 37.50%,98.44% 37.50%,98.44% 40.62%,98.44% 40.62%,98.44% 43.75%,99.22% 43.75%,99.22% 46.88%,99.22% 46.88%,99.22% 50.00%,99.22% 50.00%,99.22% 53.12%,100.00% 53.12%,100.00% 56.25%,100.00% 56.25%,100.00% 59.38%,100.00% 59.38%,100.00% 62.50%,100.00% 62.50%,100.00% 65.62%,100.00% 65.62%,100.00% 68.75%,99.22% 68.75%,99.22% 71.88%,98.44% 71.88%,98.44% 75.00%,97.66% 75.00%,97.66% 78.12%,96.09% 78.12%,96.09% 81.25%,94.53% 81.25%,94.53% 84.38%,92.19% 84.38%,92.19% 87.50%,89.84% 87.50%,89.84% 90.62%,85.94% 90.62%,85.94% 93.75%,80.47% 93.75%,80.47% 96.88%,70.31% 96.88%,70.31% 100.00%,29.69% 100.00%,29.69% 96.88%,19.53% 96.88%,19.53% 93.75%,14.06% 93.75%,14.06% 90.62%,10.16% 90.62%,10.16% 87.50%,7.81% 87.50%,7.81% 84.38%,5.47% 84.38%,5.47% 81.25%,3.91% 81.25%,3.91% 78.12%,2.34% 78.12%,2.34% 75.00%,1.56% 75.00%,1.56% 71.88%,0.78% 71.88%,0.78% 68.75%,0.00% 68.75%,0.00% 65.62%,0.00% 65.62%,0.00% 62.50%,0.00% 62.50%,0.00% 59.38%,0.00% 59.38%,0.00% 56.25%,0.00% 56.25%,0.00% 53.12%,0.78% 53.12%,0.78% 50.00%,0.78% 50.00%,0.78% 46.88%,0.78% 46.88%,0.78% 43.75%,1.56% 43.75%,1.56% 40.62%,1.56% 40.62%,1.56% 37.50%,2.34% 37.50%,2.34% 34.38%,3.12% 34.38%,3.12% 31.25%,3.91% 31.25%,3.91% 28.12%,5.47% 28.12%,5.47% 25.00%,6.25% 25.00%,6.25% 21.88%,7.81% 21.88%,7.81% 18.75%,10.16% 18.75%,10.16% 15.62%,12.50% 15.62%,12.50% 12.50%,15.62% 12.50%,15.62% 9.38%,19.53% 9.38%,19.53% 6.25%,24.22% 6.25%,24.22% 3.12%,32.81% 3.12%,32.81% 0.00%);
+    box-shadow:inset 0 6px 0 var(--lcd-dark)}
   .screen::after{content:"";position:absolute;inset:0;pointer-events:none;
-    background-image:linear-gradient(rgba(0,0,0,.055) 1px,transparent 1px);
-    background-size:100% 3px;}
-  canvas{display:block;width:100%;height:100%}
+    background-image:linear-gradient(rgba(0,0,0,.07) 2px,transparent 2px);
+    background-size:100% 4px}
+  canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
 
 
   /* 判讀卡 */
-  .card{position:absolute;left:16px;right:16px;bottom:16px;z-index:4;
-    background:rgba(20,26,18,.94);color:#eef2e6;border-radius:14px;padding:14px 15px;
-    transform:translateY(24%);opacity:0;visibility:hidden;pointer-events:none;
-    transition:transform .38s cubic-bezier(.2,.9,.3,1),opacity .26s,visibility 0s .38s}
+  .card{position:absolute;left:18px;right:18px;bottom:20px;z-index:4;
+    background:#141a12;color:#eef2e6;border-radius:0;padding:14px 15px;
+    box-shadow:0 -4px 0 var(--line),0 4px 0 var(--line),-4px 0 0 var(--line),4px 0 0 var(--line);
+    transform:translateY(16%);opacity:0;visibility:hidden;pointer-events:none;
+    transition:transform .2s steps(4,end),opacity .16s steps(3,end),visibility 0s .2s}
   .card.up{transform:none;opacity:1;visibility:visible;pointer-events:auto;
-    transition:transform .38s cubic-bezier(.2,.9,.3,1),opacity .2s,visibility 0s}
-  .card h2{font-size:17px;margin-bottom:5px}
-  .card p{font-size:13.5px;line-height:1.55;opacity:.92}
-  .card .say{margin-top:8px;font-size:13px;line-height:1.5;opacity:.8;
-    padding-left:9px;border-left:2px solid rgba(255,255,255,.28)}
-  .card .tip{margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.16);
-    font-size:11.5px;line-height:1.5;opacity:.62}
+    transition:transform .2s steps(4,end),opacity .12s steps(3,end),visibility 0s}
+  .card h2{font-size:16px;margin-bottom:6px;letter-spacing:.06em;
+    text-shadow:2px 2px 0 rgba(0,0,0,.5)}
+  .card p{font-size:13.5px;line-height:1.6;opacity:.92}
+  .card .say{margin-top:9px;font-size:13px;line-height:1.5;opacity:.8;
+    padding-left:9px;box-shadow:inset 3px 0 0 rgba(255,255,255,.3)}
+  .card .tip{margin-top:10px;padding-top:9px;font-size:11.5px;line-height:1.55;opacity:.6;
+    box-shadow:inset 0 3px 0 rgba(255,255,255,.14)}
 
-  footer{padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
-  .row{display:flex;gap:10px}
-  .btn{flex:1;border:none;border-radius:15px;background:var(--btn);
-    box-shadow:0 4px 0 #b9b2a2;color:var(--ink);
-    font-size:15px;font-weight:700;padding:16px 8px;cursor:pointer}
-  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 #b9b2a2}
+  footer{padding:16px 18px calc(20px + env(safe-area-inset-bottom))}
+  .row{display:flex;gap:18px}
+  .btn{flex:1;border:none;border-radius:0;background:var(--btn);color:var(--ink);
+    font-family:inherit;font-size:15px;font-weight:700;padding:15px 8px;cursor:pointer;
+    letter-spacing:.08em;
+    box-shadow:0 -4px 0 var(--line),0 4px 0 var(--line),
+               -4px 0 0 var(--line),4px 0 0 var(--line),
+               0 10px 0 var(--sh)}
+  .btn:active{transform:translateY(6px);
+    box-shadow:0 -4px 0 var(--line),0 4px 0 var(--line),
+               -4px 0 0 var(--line),4px 0 0 var(--line),
+               0 4px 0 var(--sh)}
   .btn:disabled{opacity:.5}
-  .btn small{display:block;font-weight:500;font-size:10.5px;opacity:.5;margin-top:3px;letter-spacing:.06em}
+  /* 英數才給像素字 —— 繁中沒有夠完整的像素字，混用會缺字 */
+  .btn small{display:block;font-family:var(--pixel);font-weight:400;font-size:7px;
+    opacity:.45;margin-top:7px;letter-spacing:.04em}
 
   /* 開場衛教 —— 唯一正經的一格 */
   .intro{position:fixed;inset:0;z-index:50;background:rgba(14,21,18,.95);color:#eef2e6;
     display:flex;flex-direction:column;justify-content:center;gap:14px;padding:40px 32px;font-size:15px;line-height:1.7}
-  .intro b{font-size:21px;display:block;margin-bottom:2px}
+  .intro b{font-size:21px;display:block;margin-bottom:4px;letter-spacing:.05em;
+    text-shadow:3px 3px 0 rgba(0,0,0,.55)}
   .intro span{opacity:.66;font-size:13px}
   .intro em{font-style:normal;color:#ffb4a2}
-  .intro .go{margin-top:14px;font:700 12px/1 ui-monospace,Menlo,monospace;letter-spacing:.2em;opacity:.5}
+  .intro .go{margin-top:16px;font-family:var(--pixel);font-size:9px;letter-spacing:.08em;opacity:.55;
+    animation:blink 1.2s steps(1,end) infinite}
+  @keyframes blink{0%,50%{opacity:.55}50.01%,100%{opacity:.12}}
 
   /* Demo 控制台 */
-  .dev{position:fixed;inset:0;z-index:60;background:rgba(14,21,18,.9);display:none;
-    flex-direction:column;justify-content:flex-end;padding:18px;gap:8px;overflow-y:auto}
+  .dev{position:fixed;inset:0;z-index:60;background:rgba(14,21,18,.94);display:none;
+    flex-direction:column;padding:18px 18px 28px;overflow-y:auto;-webkit-overflow-scrolling:touch}
   .dev.on{display:flex}
-  .dev p{color:#9fb195;font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;margin:6px 0 4px}
-  .dev button{border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:700;
-    background:#e8e2d4;color:#1b2318;text-align:left;cursor:pointer;width:100%}
+  /* 內容少的時候貼底，多的時候從頭捲 */
+  .dev>p:first-of-type{margin-top:auto}
+  .dev p{color:#9fb195;font-family:var(--pixel);font-size:8px;letter-spacing:.06em;margin:14px 0 8px}
+  .dev button{border:none;border-radius:0;padding:11px 12px;font-size:13.5px;font-weight:700;
+    background:var(--btn);color:var(--ink);text-align:left;cursor:pointer;width:100%;
+    font-family:inherit;letter-spacing:.04em;margin-bottom:7px;
+    box-shadow:0 -3px 0 var(--line),0 3px 0 var(--line),-3px 0 0 var(--line),3px 0 0 var(--line)}
+  .dev button:active{transform:translateY(2px)}
   .dev button.sel{background:var(--hot);color:#fff}
-  .dev button.ghost{background:rgba(255,255,255,.1);color:#eef2e6}
-  .dev .close{background:transparent;color:#9fb195;text-align:center;font-weight:600}
+  .dev button.ghost{background:#2c3a28;color:#eef2e6}
+  .dev .close{background:transparent;color:#9fb195;text-align:center;font-weight:600;
+    box-shadow:none;margin-top:6px}
 
   /* 常駐安全須知（Spec A：黑便/血便靠這頁，不靠偵測） */
   .safe{position:fixed;inset:0;z-index:70;background:#0e1512;color:#eef2e6;display:none;
     flex-direction:column;gap:16px;padding:44px 30px;font-size:15px;line-height:1.75;overflow-y:auto}
   .safe.on{display:flex}
-  .safe h1{font-size:20px}
+  .safe h1{font-size:20px;letter-spacing:.05em;text-shadow:3px 3px 0 rgba(0,0,0,.5)}
   .safe em{font-style:normal;color:#ffb4a2}
   .safe .muted{opacity:.6;font-size:13px;line-height:1.6}
-  .safe button{margin-top:auto;border:none;border-radius:12px;padding:15px;
-    background:#e8e2d4;color:#1b2318;font-size:15px;font-weight:700;cursor:pointer}
+  .safe button{margin-top:auto;border:none;border-radius:0;padding:15px;
+    background:var(--btn);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer;
+    font-family:inherit;letter-spacing:.06em;
+    box-shadow:0 -4px 0 var(--line),0 4px 0 var(--line),-4px 0 0 var(--line),4px 0 0 var(--line)}
+  .safe button:active{transform:translateY(3px)}
   @media (prefers-reduced-motion:reduce){.card,.card.up{transition:none}}
 </style>
 </head>
 <body>
 
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+
 <header>
   <div class="brand">便便雞</div>
-  <div class="count" id="count">今日餵食 0</div>
+  <div class="count">今日餵食<b id="count">0</b></div>
   <button class="chili" id="chili" aria-label="這餐有吃辣" title="這餐有吃辣">🌶</button>
   <button class="gear" id="gear" aria-label="demo 控制台">⚙</button>
 </header>
 
 <div class="device">
   <div class="tank"><i class="flush"></i></div>
-  <div class="bowl">
-    <div class="screen">
-      <canvas id="stage"></canvas>
+  <div class="rim">
+    <div class="bowl">
+      <div class="screen">
+        <canvas id="stage"></canvas>
+      </div>
     </div>
-    <div class="card" id="card">
-      <h2 id="cardTitle"></h2>
-      <p id="cardLine"></p>
-      <div class="say" id="cardSay" hidden></div>
-      <div class="tip" id="cardTip"></div>
-    </div>
+  </div>
+  <div class="card" id="card">
+    <h2 id="cardTitle"></h2>
+    <p id="cardLine"></p>
+    <div class="say" id="cardSay" hidden></div>
+    <div class="tip" id="cardTip"></div>
   </div>
 </div>
 
@@ -437,10 +473,19 @@ addEventListener('resize',resize);
 
 function scale(){return Math.max(3,Math.min(7,Math.floor(Math.min(W,H)/46)));}
 
-/* 水面是橢圓的，牆壁在哪要看高度。半寬 = 這個 y 的橢圓寬度。 */
+/* 水面是階梯狀的蛋形，牆壁在哪要看高度。
+   這裡的公式必須跟 CSS clip-path 的那串座標同源，不然雞會走到階梯外面。 */
+const SHAPE_STEPS=32,SHAPE_GRID=64,SHAPE_N=2.6;
+function shapeRaw(t){
+  return Math.pow(1-Math.pow(Math.abs(2*t-1),SHAPE_N),1/SHAPE_N)*(0.84+0.16*t);
+}
+const SHAPE_NORM=(function(){let m=0;for(let i=0;i<=2000;i++)m=Math.max(m,shapeRaw(i/2000));return m;})();
+/** 某個高度的水面半寬（已量化成跟畫面上一樣的階梯） */
 function halfAt(y){
-  const dy=(y-H/2)/(H/2);
-  return (W/2)*Math.sqrt(Math.max(0,1-dy*dy));
+  const t=Math.min(1,Math.max(0,y/H));
+  const band=Math.min(SHAPE_STEPS-1,Math.floor(t*SHAPE_STEPS));
+  const h=Math.round(shapeRaw((band+.5)/SHAPE_STEPS)/SHAPE_NORM*SHAPE_GRID)/SHAPE_GRID;
+  return (W/2)*h;
 }
 /** 雞在地面那條線上能走的左右界，留一點邊免得半個身體插進陶瓷裡 */
 function bounds(){
@@ -823,7 +868,7 @@ async function feed(file){
   photo=shrunk.img;photoUrl=shrunk.url;
   chick.mode='eat';chick.eatT=0;ball=null;chick.target=null;
   parts=[];trail=[];
-  feeds++;document.getElementById('count').textContent='今日餵食 '+feeds;
+  feeds++;document.getElementById('count').textContent=feeds;
   oweAPoop();
   document.getElementById('card').classList.remove('up');
 

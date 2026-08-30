@@ -44,6 +44,9 @@ let judgeCalls = 0;
 async function fresh() {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 780 } });
   const page = await ctx.newPage();
+  // 測試不打外部網路：Google Fonts 在這台機器上要 12 秒，測試也不該依賴它
+  await page.route("**fonts.googleapis.com/**", (r) => r.abort());
+  await page.route("**fonts.gstatic.com/**", (r) => r.abort());
   await page.route("**/api/judge", async (route) => {
     judgeCalls++;
     await route.fulfill({
@@ -219,6 +222,9 @@ await check("重開 app 之後累積狀態還在", async () => {
 await check("預設 AI 判讀是關的 → 不打 API", async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 780 } });
   const page = await ctx.newPage();
+  // 測試不打外部網路：Google Fonts 在這台機器上要 12 秒，測試也不該依賴它
+  await page.route("**fonts.googleapis.com/**", (r) => r.abort());
+  await page.route("**fonts.gstatic.com/**", (r) => r.abort());
   let called = 0;
   await page.route("**/api/judge", async (route) => {
     called++;
@@ -293,6 +299,9 @@ await check("放著不清 → 倒數歸零之後牠自己吃掉", async () => {
 await check("切到背景時倒數凍結，不在後台偷跑", async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 780 } });
   const page = await ctx.newPage();
+  // 測試不打外部網路：Google Fonts 在這台機器上要 12 秒，測試也不該依賴它
+  await page.route("**fonts.googleapis.com/**", (r) => r.abort());
+  await page.route("**fonts.gstatic.com/**", (r) => r.abort());
   await page.goto(base);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
