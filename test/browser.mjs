@@ -87,12 +87,9 @@ await check("Bristol 1 餵一次 → 不變形，只記一筆", async () => {
   const { ctx, page } = await fresh();
   await feedOnce(page);
   assert.equal(await page.evaluate(() => state), "normal");
-  // 一秒的即時反應先出現
-  assert.match(await page.textContent("#badge"), /剛剛：石化訊號/);
   assert.match(await page.textContent("#cardTitle"), /記下來了/);
-  // 一秒後退回累積進度
-  await page.waitForTimeout(1100);
-  assert.match(await page.textContent("#badge"), /石化 1\/2/);
+  // 進度只記在 hist，畫面上不再有計數器
+  assert.deepEqual(await page.evaluate(() => hist), [["stone"]]);
   await ctx.close();
 });
 
@@ -344,6 +341,24 @@ await check("⚙ 馬上大便 + 清掉地上全部", async () => {
   await page.click("#gear");
   await page.click("#devPoop button:nth-child(3)");
   assert.equal(await page.evaluate(() => poops.length), 0);
+  await ctx.close();
+});
+
+// 19. 螢幕上不再有狀態列與倒數
+await check("LCD 上方不再有 badge / 倒數計時器", async () => {
+  const { ctx, page } = await fresh();
+  assert.equal(await page.locator("#badge").count(), 0, "badge 應該整個拿掉");
+  assert.equal(await page.locator("#timer").count(), 0, "倒數計時器應該整個拿掉");
+  await page.evaluate(() => { poopDue = true; poopIn = 0; ball = null; });
+  await page.waitForFunction(() => poops.length === 1, null, { timeout: 15000 });
+  assert.equal(await page.locator("#timer").count(), 0, "有便便的時候也不該冒出倒數");
+  await ctx.close();
+});
+
+await check("預設倒數是 30 秒", async () => {
+  const { ctx, page } = await fresh();
+  assert.equal(await page.evaluate(() => CLEAN_SEC_DEFAULT), 30);
+  assert.equal(await page.evaluate(() => CLEAN_SEC), 30);
   await ctx.close();
 });
 

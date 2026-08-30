@@ -53,15 +53,6 @@
     background-size:100% 3px;}
   canvas{display:block;width:100%;height:100%}
 
-  .badge{position:absolute;top:10px;left:10px;z-index:3;
-    font:700 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;
-    background:rgba(27,35,24,.82);color:var(--lcd);padding:7px 10px;border-radius:7px}
-  .badge.think{animation:pulse 1.1s ease-in-out infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
-  .timer{position:absolute;top:10px;right:10px;z-index:3;
-    font:700 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.08em;
-    background:rgba(27,35,24,.82);color:var(--lcd);padding:7px 10px;border-radius:7px}
-  .timer.urgent{background:rgba(216,84,58,.92);color:#fff;animation:pulse .7s ease-in-out infinite}
 
   /* 判讀卡 */
   .card{position:absolute;left:10px;right:10px;bottom:10px;z-index:4;
@@ -112,7 +103,7 @@
   .safe .muted{opacity:.6;font-size:13px;line-height:1.6}
   .safe button{margin-top:auto;border:none;border-radius:12px;padding:15px;
     background:#e8e2d4;color:#1b2318;font-size:15px;font-weight:700;cursor:pointer}
-  @media (prefers-reduced-motion:reduce){.card{transition:none}.badge.think{animation:none}}
+  @media (prefers-reduced-motion:reduce){.card{transition:none}}
 </style>
 </head>
 <body>
@@ -126,8 +117,6 @@
 
 <div class="device">
   <div class="screen">
-    <div class="badge" id="badge">狀態：正常</div>
-    <div class="timer" id="timer" hidden></div>
     <canvas id="stage"></canvas>
     <div class="card" id="card">
       <h2 id="cardTitle"></h2>
@@ -222,7 +211,7 @@ const POOP_PAL={D:'#4a4231',L:'#6f6549'};
 /** 餵幾次之後牠會自己大一次 */
 const FEEDS_PER_POOP=4;
 /** 沒清掉的話多久牠會自己吃掉（只算使用者真的在看螢幕的時間） */
-const CLEAN_SEC_DEFAULT=60;
+const CLEAN_SEC_DEFAULT=30;
 let CLEAN_SEC=CLEAN_SEC_DEFAULT;
 
 const TINT={
@@ -360,12 +349,6 @@ function cumulative(){
   for(const k of ORDER)if(hist.filter(s=>s.indexOf(k)>=0).length>=2)return k;
   return 'normal';
 }
-/** 還差一次就達標的訊號，拿來顯示進度 */
-function pendingSignal(){
-  for(const k of ORDER)if(hist.filter(s=>s.indexOf(k)>=0).length===1)return k;
-  return null;
-}
-
 /** 把照片縮到 1024px JPEG 再送 —— 手機原圖 8MB 會打爆 request body */
 function shrink(file,max){
   max=max||1024;
@@ -409,7 +392,7 @@ const chick={x:0,y:0,dir:1,t:0,target:null,wait:0,peck:0,mode:'idle',eatT:0,jitt
 let state='normal',ball=null,parts=[],trail=[],photo=null,photoUrl=null,feeds=0,forced=null,glow=0;
 let result=null,waiting=false,flash=0,flashSig=null;
 /* 牠自己的便便：地上那幾坨、還差幾次餵食、以及「該大了但使用者還沒在看」 */
-let poops=[],feedsSincePoop=0,poopDue=false,poopIn=0,hungryFor=null,lastLeft=-1;
+let poops=[],feedsSincePoop=0,poopDue=false,poopIn=0,hungryFor=null,saveT=0;
 
 function resize(){
   const r=cv.parentElement.getBoundingClientRect();
@@ -544,7 +527,8 @@ function loop(now){
       q.age+=dt;q.t+=dt;
       if(q.age>=CLEAN_SEC&&!hungryFor&&chick.mode==='idle')hungryFor=q;
     }
-    tickTimer();
+    /* 每秒存一次，關掉 app 再開才不會把已經走掉的倒數還回去 */
+    if(poops.length){saveT+=dt;if(saveT>=1){saveT=0;savePoop();}}
   }
 
   /* 蹲下來大 */
@@ -564,7 +548,7 @@ function loop(now){
       const i=poops.indexOf(hungryFor);
       if(i>=0)poops.splice(i,1);
       puff(hungryFor?hungryFor.x:chick.x,ground,14,['#6f6549','#4a4231','#8a7f5c']);
-      hungryFor=null;savePoop();tickTimer();
+      hungryFor=null;savePoop();
       showCard('牠吃掉了','你沒清，牠就自己解決了。牠看起來完全不覺得有什麼問題。','',
         '地上的便便放著不管，'+CLEAN_SEC+' 秒後牠會自己吃掉。這個倒數只算你真的在看螢幕的時間。');
     }
@@ -683,8 +667,7 @@ cv.addEventListener('pointerdown',e=>{
       poops.splice(i,1);
       if(hungryFor===q){hungryFor=null;if(chick.mode==='own')chick.mode='idle';}
       puff(q.x,ground,12,['#dfe7d2','#9ab07f','#f2f5e6']);
-      savePoop();tickTimer();
-      setBadge('清掉了',false);setTimeout(refreshBadge,900);
+      savePoop();
       return;
     }
   }
@@ -700,11 +683,10 @@ function startPoop(){
 }
 function dropPoop(){
   const s=scale();
-  const x=Math.max(20,Math.min(W-20,chick.x-chick.dir*4*s));
+  /* 雞半個身體是 8*s，往後放 7.5*s 才不會被牠自己擋住 */
+  const x=Math.max(20,Math.min(W-20,chick.x-chick.dir*7.5*s));
   poops.push({x:x,age:0,t:0});
   savePoop();
-  setBadge('牠大便了',false);
-  setTimeout(refreshBadge,1400);
   showCard('牠大便了','比你餵牠的那坨小很多。牠自己也知道，所以牠不會拍照。','',
     CLEAN_SEC+' 秒內點它清掉，不然牠會自己吃掉。倒數只算你在看螢幕的時間。');
 }
@@ -716,35 +698,6 @@ function oweAPoop(){
   }
   savePoop();
 }
-/** 倒數只在畫面上跳，不做背景通知 */
-function tickTimer(){
-  const el=document.getElementById('timer');
-  if(!poops.length){
-    if(lastLeft!==-1){el.hidden=true;lastLeft=-1;}
-    return;
-  }
-  let oldest=0;
-  for(const q of poops)if(q.age>oldest)oldest=q.age;
-  const left=Math.max(0,Math.ceil(CLEAN_SEC-oldest));
-  if(left===lastLeft)return;
-  lastLeft=left;
-  el.hidden=false;
-  el.textContent='🧹 '+left+'s';
-  el.classList.toggle('urgent',left<=10);
-  /* 每秒存一次，關掉 app 再開才不會把已經走掉的倒數還回去 */
-  savePoop();
-}
-
-const badge=document.getElementById('badge');
-function setBadge(text,thinking){
-  badge.textContent=text;
-  badge.classList.toggle('think',!!thinking);
-}
-function refreshBadge(){
-  const p=state==='normal'?pendingSignal():null;
-  setBadge('狀態：'+STATES[state].label+(p?' · '+STATES[p].label+' 1/2':''),false);
-}
-
 function showCard(title,line,say,tip){
   const c=document.getElementById('card'),sayEl=document.getElementById('cardSay');
   document.getElementById('cardTitle').textContent=title;
@@ -761,15 +714,12 @@ function transform(k,say,tip){
   state=k;glow=1;burst(30,BURST[k]);
   const S=STATES[k];
   showCard(S.title,S.line,say,tip||S.tip);
-  refreshBadge();
 }
 
 /** 一秒的即時反應 —— 還沒達到變形門檻時，只給這個 */
 function instant(sig){
   flash=1;flashSig=sig;
   burst(14,BURST[sig]);
-  setBadge('剛剛：'+STATES[sig].label+'訊號',false);
-  setTimeout(refreshBadge,1000);
 }
 
 function applyFeed(res){
@@ -794,7 +744,6 @@ function applyFeed(res){
     burst(12,['#f2f5e6','#e8a52e']);
     showCard('這不是便便','雞還是吃了，但牠什麼都判斷不出來。',say,
       '判讀範圍只有形狀與質地（Bristol 1–7 與是否油亮）。'+tipExtra);
-    refreshBadge();
     return;
   }
 
@@ -804,7 +753,6 @@ function applyFeed(res){
       state='normal';parts=[];trail=[];glow=0;
       showCard('牠解除了','訊號斷了，牠變回一隻普通的雞。',say,
         '最近 3 次裡沒有任何訊號達到 2 次。'+tipExtra);
-      refreshBadge();
     }else{
       transform(next,say,STATES[next].tip+tipExtra);
     }
@@ -854,7 +802,7 @@ async function feed(file){
 
   if(!aiOn||!shrunk.data){result=demo();return;}
 
-  waiting=true;setBadge('判讀中…',true);
+  waiting=true;
   try{
     const j=await judge(shrunk.data);
     result={signals:signalsOf(j,wasSpicy),note:j.note,
@@ -886,9 +834,8 @@ const devBtns=document.getElementById('devBtns');
 });
 const rb=document.createElement('button');rb.textContent='重設成正常（清空累積）';
 rb.onclick=()=>{state='normal';parts=[];trail=[];glow=0;hist=[];saveHist();
-  poops=[];hungryFor=null;feedsSincePoop=0;poopDue=false;savePoop();tickTimer();
+  poops=[];hungryFor=null;feedsSincePoop=0;poopDue=false;savePoop();
   if(chick.mode==='own'||chick.mode==='poop')chick.mode='idle';
-  refreshBadge();
   document.getElementById('card').classList.remove('up');dev.classList.remove('on');};
 devBtns.appendChild(rb);
 
@@ -915,7 +862,7 @@ function paintFast(){
 }
 fastBtn.onclick=()=>{
   CLEAN_SEC=CLEAN_SEC===CLEAN_SEC_DEFAULT?10:CLEAN_SEC_DEFAULT;
-  lastLeft=-1;tickTimer();paintFast();
+  paintFast();
 };
 paintFast();
 devPoop.appendChild(fastBtn);
@@ -923,7 +870,7 @@ devPoop.appendChild(fastBtn);
 const clearBtn=document.createElement('button');
 clearBtn.textContent='清掉地上全部';
 clearBtn.onclick=()=>{poops=[];hungryFor=null;if(chick.mode==='own')chick.mode='idle';
-  savePoop();tickTimer();dev.classList.remove('on');};
+  savePoop();dev.classList.remove('on');};
 devPoop.appendChild(clearBtn);
 
 gear.onclick=()=>dev.classList.add('on');
@@ -966,7 +913,7 @@ loadPoop();
 /* 存的 x 是像素，換裝置或轉向之後要拉回畫面內 */
 for(const q of poops)q.x=Math.max(20,Math.min(W-20,q.x));
 if(poopDue&&!poopIn)poopIn=2.5;
-state=cumulative();refreshBadge();tickTimer();
+state=cumulative();
 requestAnimationFrame(loop);
 </script>
 </body>
