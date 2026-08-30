@@ -86,45 +86,45 @@ async function check(name, fn) {
 }
 
 // 1. 累積制：Bristol 1 一次不變形，兩次才變石化
-await check("Bristol 1 餵一次 → 不變形，只記一筆", async () => {
+await check("Bristol 1 餵一次 → 當下就石化，不用累積", async () => {
   const { ctx, page } = await fresh();
-  await feedOnce(page);
-  assert.equal(await page.evaluate(() => state), "normal");
-  assert.match(await page.textContent("#cardTitle"), /記下來了/);
-  // 進度只記在 hist，畫面上不再有計數器
-  assert.deepEqual(await page.evaluate(() => hist), [["stone"]]);
-  await ctx.close();
-});
-
-await check("Bristol 1 餵兩次 → 石化", async () => {
-  const { ctx, page } = await fresh();
-  await feedOnce(page);
   await feedOnce(page);
   assert.equal(await page.evaluate(() => state), "stone");
   assert.match(await page.textContent("#cardTitle"), /石化了/);
   await ctx.close();
 });
 
-// 2. 解除：石化後連餵兩次 Bristol 3（無訊號）→ 變回正常
-await check("石化後兩次無訊號 → 解除回正常", async () => {
+await check("連餵不同訊號 → 每次都跟著最後一張變", async () => {
   const { ctx, page } = await fresh();
   await feedOnce(page);
+  assert.equal(await page.evaluate(() => state), "stone");
+  verdict = { ...verdict, bristol: "7" };
+  await feedOnce(page);
+  assert.equal(await page.evaluate(() => state), "watery", "第二張是 7，應該立刻液化");
+  verdict = { ...verdict, bristol: "4" };
+  await feedOnce(page);
+  assert.equal(await page.evaluate(() => state), "perfect", "第三張是 4，應該立刻完美");
+  verdict = { ...verdict, bristol: "1" };
+  await ctx.close();
+});
+
+// 2. 解除：石化後連餵兩次 Bristol 3（無訊號）→ 變回正常
+await check("石化後餵一張 Bristol 3 → 立刻恢復正常", async () => {
+  const { ctx, page } = await fresh();
   await feedOnce(page);
   assert.equal(await page.evaluate(() => state), "stone");
   verdict = { ...verdict, bristol: "3", note: "還行" };
   await feedOnce(page);
-  await feedOnce(page);
   assert.equal(await page.evaluate(() => state), "normal");
-  assert.match(await page.textContent("#cardTitle"), /解除/);
+  assert.match(await page.textContent("#cardTitle"), /恢復/);
   verdict = { ...verdict, bristol: "1", note: "硬得像石頭" };
   await ctx.close();
 });
 
 // 3. Bristol 4 兩次 → 完美
-await check("Bristol 4 兩次 → 完美", async () => {
+await check("Bristol 4 一次 → 完美", async () => {
   const { ctx, page } = await fresh();
   verdict = { ...verdict, bristol: "4", note: "一次成型" };
-  await feedOnce(page);
   await feedOnce(page);
   assert.equal(await page.evaluate(() => state), "perfect");
   verdict = { ...verdict, bristol: "1", note: "硬得像石頭" };
@@ -132,10 +132,9 @@ await check("Bristol 4 兩次 → 完美", async () => {
 });
 
 // 4. 油亮優先於 Bristol：oily=true 兩次 → 油亮
-await check("油亮兩次 → 油亮（蓋過 Bristol 4）", async () => {
+await check("油亮一次 → 油亮（蓋過 Bristol 4）", async () => {
   const { ctx, page } = await fresh();
   verdict = { ...verdict, bristol: "4", oily: true };
-  await feedOnce(page);
   await feedOnce(page);
   assert.equal(await page.evaluate(() => state), "oily");
   verdict = { ...verdict, bristol: "1", oily: false };
@@ -168,23 +167,22 @@ await check("API 500 → 退回隨機，雞不會卡在咀嚼", async () => {
 });
 
 // 7. 不是便便 → 雞照吃，但不記帳
-await check("is_stool=false → 不變形，出「這不是便便」", async () => {
+await check("is_stool=false → 型態不動，出「這不是便便」", async () => {
   const { ctx, page } = await fresh();
+  await feedOnce(page);
+  assert.equal(await page.evaluate(() => state), "stone");
   verdict = { is_stool: false, bristol: "none", oily: false, confidence: "high", note: "這不是便便" };
   await feedOnce(page);
-  await feedOnce(page);
-  assert.equal(await page.evaluate(() => state), "normal");
+  assert.equal(await page.evaluate(() => state), "stone", "判不出來就不該動牠的型態");
   assert.match(await page.textContent("#cardTitle"), /這不是便便/);
   verdict = { is_stool: true, bristol: "1", oily: false, confidence: "high", note: "硬得像石頭" };
   await ctx.close();
 });
 
 // 8. 辣是用戶自填，兩次 → 噴火
-await check("🌶 自填兩次 → 噴火", async () => {
+await check("🌶 自填一次 → 噴火", async () => {
   const { ctx, page } = await fresh();
   verdict = { ...verdict, bristol: "3" };
-  await page.click("#chili");
-  await feedOnce(page);
   await page.click("#chili");
   await feedOnce(page);
   assert.equal(await page.evaluate(() => state), "spicy");
@@ -207,9 +205,8 @@ await check("送給 API 的是縮過的 JPEG data URL", async () => {
 });
 
 // 10. 累積狀態跨重開留著
-await check("重開 app 之後累積狀態還在", async () => {
+await check("重開 app 之後型態還在", async () => {
   const { ctx, page } = await fresh();
-  await feedOnce(page);
   await feedOnce(page);
   assert.equal(await page.evaluate(() => state), "stone");
   await page.reload();

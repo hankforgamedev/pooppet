@@ -43,6 +43,12 @@ npx vercel dev
 
 demo 動線照 [Spec B](./docs/spec-b-demo.md) 走 90 秒。
 
+## 變形是當下的
+
+送出圖片的當下，牠就變成那一張的型態 —— 沒有累積、不用餵兩次。
+Bristol 3／5 沒有訊號就變回正常。這推翻了 Spec A 的累積制，
+取捨寫在 [ai-judgment.md](./docs/ai-judgment.md)。
+
 ## 牠自己也會大便
 
 每餵 4 次，牠會自己大一坨 —— **比你餵牠的那坨小很多**，大小差距就是笑點。
