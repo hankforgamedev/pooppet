@@ -13,7 +13,8 @@ docs/spec-a-product.md  Spec A — 完整版產品方向
 docs/spec-b-demo.md     Spec B — 2.5 小時 demo
 docs/ai-judgment.md     AI 判讀怎麼接的、累積制怎麼算、失敗怎麼退
 docs/poop-mechanic.md   牠自己大便、清理倒數、以及為什麼只在前景跑
-test/                 19 個瀏覽器測試 + 9 個 handler 測試
+docs/poop-analysis-feature.md  拍照、API、本機照片簿與 Vercel 驗收規格
+test/                 25 個瀏覽器測試 + 11 個 handler 測試
 ```
 
 ## 三分鐘上線
@@ -33,6 +34,8 @@ npx vercel dev
 
 部署到 Vercel 之後，在 Project Settings → Environment Variables 設 `OPENAI_API_KEY`，
 然後在 app 裡按 ⚙ → 判讀來源 → 把「AI 判讀」打開。
+
+模型預設為 `gpt-5.6-terra`；需要替換時可另外設定 `POOPPET_MODEL`。
 
 ## 預設是 demo 模式
 
@@ -58,6 +61,15 @@ demo 動線照 [Spec B](./docs/spec-b-demo.md) 走 90 秒。
 沒有偵測功能，就沒有漏判責任 —— 這是產品地基，不是待辦事項。詳見 [Spec A](./docs/spec-a-product.md)。
 
 這是娛樂與生活紀錄用途，不是醫療器材。
+
+## 本機照片簿
+
+每次餵食會把縮成 1024px 的照片、拍攝時間與判讀標籤存進這台裝置的
+IndexedDB。照片不會寫進 Vercel、OpenAI 儲存或任何雲端相簿；API request 也設定
+`store: false`。照片簿支援單張刪除與全部清除。
+
+清除瀏覽器網站資料或移除 PWA 可能一併刪除照片；這不是跨裝置備份功能。
+完整資料格式與驗收條件見 [拍照判讀功能規格](./docs/poop-analysis-feature.md)。
 
 ## 視覺
 
@@ -90,3 +102,4 @@ npm test            # handler 測試 + 瀏覽器測試（會開一顆 Chromium�
 3. 改 `ART.frames` 成你的格數
 
 圖沒放也不會壞，會自動退回內建像素雞。
+

@@ -45,10 +45,10 @@
   .count{font-size:11px;font-weight:700;color:#4d584c;margin-left:auto;letter-spacing:.06em}
   .count b{font-family:var(--pixel);font-size:10px;font-weight:400;margin-left:5px}
   /* 像素方鈕：四個硬陰影做出缺角的描邊 */
-  .gear,.chili{width:30px;height:30px;border:none;border-radius:0;padding:0;color:inherit;
+  .gear,.chili,.archive-btn{width:30px;height:30px;border:none;border-radius:0;padding:0;color:inherit;
     background:var(--btn);font-size:14px;line-height:30px;text-align:center;cursor:pointer;
     box-shadow:0 -3px 0 var(--line),0 3px 0 var(--line),-3px 0 0 var(--line),3px 0 0 var(--line)}
-  .gear:active,.chili:active{background:var(--sh)}
+  .gear:active,.chili:active,.archive-btn:active{background:var(--sh)}
   .chili{filter:grayscale(1);opacity:.5}
   .chili.on{filter:none;opacity:1;background:var(--hot)}
 
@@ -159,6 +159,30 @@
     font-family:inherit;letter-spacing:.06em;
     box-shadow:0 -4px 0 var(--line),0 4px 0 var(--line),-4px 0 0 var(--line),4px 0 0 var(--line)}
   .safe button:active{transform:translateY(3px)}
+
+  /* 本機照片簿 —— 延續同一套硬邊像素 UI */
+  .archive{position:fixed;inset:0;z-index:75;background:#0e1512;color:#eef2e6;display:none;
+    flex-direction:column;gap:16px;padding:28px 20px 34px;overflow-y:auto}
+  .archive.on{display:flex}
+  .archive-head{display:flex;align-items:center;gap:12px}
+  .archive-head h1{font-size:19px;letter-spacing:.05em;text-shadow:3px 3px 0 rgba(0,0,0,.5)}
+  .archive-head button,.archive-clear{border:0;border-radius:0;background:var(--btn);color:var(--ink);
+    font-family:inherit;font-weight:700;padding:11px 13px;cursor:pointer;
+    box-shadow:0 -3px 0 var(--line),0 3px 0 var(--line),-3px 0 0 var(--line),3px 0 0 var(--line)}
+  .archive-head button{margin-left:auto}
+  .archive-copy{font-size:12.5px;line-height:1.65;opacity:.65}
+  .archive-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .archive-empty{grid-column:1/-1;padding:36px 10px;text-align:center;opacity:.55;font-size:13px}
+  .archive-item{background:#263122;box-shadow:0 -3px 0 var(--line),0 3px 0 var(--line),
+    -3px 0 0 var(--line),3px 0 0 var(--line);position:relative;overflow:hidden}
+  .archive-item img{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:#20291d;
+    image-rendering:auto}
+  .archive-meta{padding:9px;font-size:11px;line-height:1.55}
+  .archive-meta b{display:block;font-size:12px;margin-bottom:2px}
+  .archive-delete{position:absolute;right:6px;top:6px;width:28px;height:28px;border:0;border-radius:0;
+    background:#141a12;color:#eef2e6;font-size:18px;cursor:pointer;
+    box-shadow:0 -2px 0 var(--line),0 2px 0 var(--line),-2px 0 0 var(--line),2px 0 0 var(--line)}
+  .archive-clear{margin-top:auto;background:#6e2d24;color:#fff}
   @media (prefers-reduced-motion:reduce){.card,.card.up{transition:none}}
 </style>
 </head>
@@ -169,6 +193,7 @@
 <header>
   <div class="brand">便便雞</div>
   <div class="count">今日餵食<b id="count">0</b></div>
+  <button class="archive-btn" id="archiveBtn" aria-label="本機照片簿" title="本機照片簿">▦</button>
   <button class="chili" id="chili" aria-label="這餐有吃辣" title="這餐有吃辣">🌶</button>
   <button class="gear" id="gear" aria-label="demo 控制台">⚙</button>
 </header>
@@ -227,6 +252,16 @@
     沒有這個功能，不是還沒做，是刻意不做 —— 一個會漏判的警示功能，比沒有警示更危險。</div>
   <div class="muted">這是娛樂與生活紀錄用途，不是醫療器材，不能用來診斷任何疾病。</div>
   <button id="safeClose">我知道了</button>
+</div>
+
+<div class="archive" id="archive">
+  <div class="archive-head">
+    <h1>本機照片簿</h1>
+    <button id="archiveClose">關閉</button>
+  </div>
+  <div class="archive-copy">照片、拍攝日期與判讀標籤只存在這台裝置。清除網站資料或移除 App 可能會一起刪除。</div>
+  <div class="archive-list" id="archiveList"></div>
+  <button class="archive-clear" id="archiveClear">清除所有本機照片</button>
 </div>
 
 <script>
@@ -362,6 +397,7 @@ const BURST={stone:['#8f968b','#6d746a'],oily:['#f5dd72','#fff'],spicy:['#ffd24a
 
 /* ---------- 判讀（Spec A：只判 Bristol 1-7 + 油亮/浮） ---------- */
 const HIST_KEY='pooppet.hist.v1';
+const PHOTO_DB='pooppet.photos.v1',PHOTO_STORE='feedPhotos';
 const AI_KEY='pooppet.ai.v1';
 
 /* 預設關著 —— Spec B 的現場零意外。要真判讀去 ⚙ 打開，選擇會記住。
@@ -391,6 +427,97 @@ function loadHist(){
 }
 function saveHist(){
   try{localStorage.setItem(HIST_KEY,JSON.stringify(hist))}catch(e){}
+}
+
+/* ---------- 本機照片簿 ----------
+   圖片 Blob 與日期標籤只進 IndexedDB，不會送到任何雲端儲存。 */
+let photoDbPromise=null,archiveUrls=[];
+function photoDb(){
+  if(!('indexedDB' in window))return Promise.reject(new Error('indexeddb_unavailable'));
+  if(photoDbPromise)return photoDbPromise;
+  photoDbPromise=new Promise((resolve,reject)=>{
+    const req=indexedDB.open(PHOTO_DB,1);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains(PHOTO_STORE)){
+        const s=db.createObjectStore(PHOTO_STORE,{keyPath:'id'});
+        s.createIndex('captured_at','captured_at');
+      }
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error||new Error('indexeddb_open_failed'));
+  });
+  return photoDbPromise;
+}
+async function photoPut(record){
+  const db=await photoDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(PHOTO_STORE,'readwrite');tx.objectStore(PHOTO_STORE).put(record);
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+  });
+}
+async function photoPatch(id,patch){
+  const db=await photoDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(PHOTO_STORE,'readwrite'),s=tx.objectStore(PHOTO_STORE),q=s.get(id);
+    q.onsuccess=()=>{if(q.result)s.put(Object.assign(q.result,patch));};
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+  });
+}
+async function photoList(){
+  const db=await photoDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(PHOTO_STORE,'readonly'),q=tx.objectStore(PHOTO_STORE).getAll();
+    q.onsuccess=()=>resolve(q.result.sort((a,b)=>b.captured_at.localeCompare(a.captured_at)));
+    q.onerror=()=>reject(q.error);
+  });
+}
+async function photoDelete(id){
+  const db=await photoDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(PHOTO_STORE,'readwrite');tx.objectStore(PHOTO_STORE).delete(id);
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+  });
+}
+async function photoClear(){
+  const db=await photoDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(PHOTO_STORE,'readwrite');tx.objectStore(PHOTO_STORE).clear();
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+  });
+}
+function dataUrlBlob(data){
+  const m=/^data:([^;]+);base64,(.*)$/s.exec(data||'');if(!m)return null;
+  const raw=atob(m[2]),bytes=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+  return new Blob([bytes],{type:m[1]});
+}
+function localPhotoId(){
+  return crypto.randomUUID?crypto.randomUUID():(Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));
+}
+async function renderArchive(){
+  archiveUrls.forEach(URL.revokeObjectURL);archiveUrls=[];
+  const list=document.getElementById('archiveList');list.textContent='';
+  let rows=[];try{rows=await photoList()}catch(e){}
+  if(!rows.length){
+    const empty=document.createElement('div');empty.className='archive-empty';
+    empty.textContent='還沒有照片。去餵雞。';list.appendChild(empty);return;
+  }
+  for(const row of rows){
+    const item=document.createElement('article');item.className='archive-item';
+    const img=document.createElement('img'),url=URL.createObjectURL(row.image_blob);archiveUrls.push(url);
+    img.src=url;img.alt='使用者保存在本機的餵食照片';
+    const meta=document.createElement('div');meta.className='archive-meta';
+    const when=document.createElement('b');when.textContent=new Date(row.captured_at).toLocaleString('zh-TW');
+    const tag=document.createElement('span');
+    const bristol=row.bristol&&row.bristol!=='none'?'Bristol '+row.bristol:'尚未判讀';
+    const signals=(row.signals||[]).join('／');
+    tag.textContent=bristol+(signals?' · '+signals:'')+(row.spicy?' · spicy':'');
+    const del=document.createElement('button');del.className='archive-delete';del.textContent='×';
+    del.setAttribute('aria-label','刪除這張本機照片');
+    del.onclick=async()=>{await photoDelete(row.id);await renderArchive();};
+    meta.append(when,tag);item.append(img,meta,del);list.appendChild(item);
+  }
 }
 
 /** Bristol + 油亮 → 訊號。3 與 5 不對應任何變形，回空陣列。 */
@@ -810,6 +937,11 @@ function instant(sig){
   burst(14,BURST[sig]);
 }
 
+/* 判讀揭曉後才知道電子雞的最終狀態，最後補回本機照片紀錄。 */
+function savePetState(res){
+  if(res&&res.archiveId)photoPatch(res.archiveId,{pet_state_after:state}).catch(()=>{});
+}
+
 function applyFeed(res){
   res=res||{signals:[],source:'demo'};
   const say=res.note||'';
@@ -821,6 +953,7 @@ function applyFeed(res){
   if(res.forced){
     hist.push([res.forced]);if(hist.length>3)hist.shift();saveHist();
     transform(res.forced,say,STATES[res.forced].tip+' ／ ⚙ 指定。');
+    savePetState(res);
     return;
   }
 
@@ -832,6 +965,7 @@ function applyFeed(res){
     burst(12,['#f2f5e6','#e8a52e']);
     showCard('這不是便便','雞還是吃了，但牠什麼都判斷不出來。',say,
       '判讀範圍只有形狀與質地（Bristol 1–7 與是否油亮）。'+tipExtra);
+    savePetState(res);
     return;
   }
 
@@ -844,6 +978,7 @@ function applyFeed(res){
     }else{
       transform(next,say,STATES[next].tip+tipExtra);
     }
+    savePetState(res);
     return;
   }
 
@@ -857,6 +992,7 @@ function applyFeed(res){
     showCard('還行','沒什麼好演的，牠繼續走來走去。',say,
       'Bristol 3 與 5 不對應任何變形。'+tipExtra);
   }
+  savePetState(res);
 }
 
 async function feed(file){
@@ -875,9 +1011,22 @@ async function feed(file){
   const wasSpicy=spicy;
   setSpicy(false);
 
+  /* 使用者要保留的是縮圖，不是手機原始大圖。這筆只寫本機 IndexedDB。 */
+  const captured=new Date(),imageBlob=dataUrlBlob(shrunk.data);
+  const archiveId=imageBlob?localPhotoId():null;
+  if(archiveId)photoPut({
+    id:archiveId,image_blob:imageBlob,captured_at:captured.toISOString(),
+    timezone_offset:captured.getTimezoneOffset(),analyzed_at:null,
+    analysis_status:'pending',is_stool:null,bristol:null,oily:null,
+    spicy:wasSpicy,confidence:null,note:'',signals:[],pet_state_after:null
+  }).catch(()=>{});
+
   /* ⚙ 指定優先，完全不打 API */
   if(forced){
-    result={forced:forced,source:'forced'};forced=null;
+    result={forced:forced,source:'forced',archiveId:archiveId};
+    if(archiveId)photoPatch(archiveId,{analysis_status:'forced',signals:[forced],
+      analyzed_at:new Date().toISOString(),note:'⚙ 指定'}).catch(()=>{});
+    forced=null;
     devBtns.querySelectorAll('button').forEach(b=>b.classList.remove('sel'));
     return;
   }
@@ -886,18 +1035,30 @@ async function feed(file){
     signals:signalsOf({is_stool:true,
       bristol:String(1+Math.random()*7|0),
       oily:Math.random()<.2},wasSpicy),
-    source:'demo'});
+    source:'demo',archiveId:archiveId});
 
-  if(!aiOn||!shrunk.data){result=demo();return;}
+  if(!aiOn||!shrunk.data){
+    result=demo();
+    if(archiveId)photoPatch(archiveId,{analysis_status:'demo',signals:result.signals,
+      analyzed_at:new Date().toISOString()}).catch(()=>{});
+    return;
+  }
 
   waiting=true;
   try{
     const j=await judge(shrunk.data);
     result={signals:signalsOf(j,wasSpicy),note:j.note,
-      notStool:!j.is_stool,source:'ai',confidence:j.confidence};
+      notStool:!j.is_stool,source:'ai',confidence:j.confidence,archiveId:archiveId};
+    if(archiveId)photoPatch(archiveId,{
+      analyzed_at:j.analyzed_at||new Date().toISOString(),analysis_status:'success',
+      is_stool:j.is_stool,bristol:j.bristol,oily:j.oily,
+      confidence:j.confidence,note:j.note||'',signals:result.signals
+    }).catch(()=>{});
   }catch(e){
     const d=demo();d.source='fallback';d.code=e.message||'unknown';
     result=d;
+    if(archiveId)photoPatch(archiveId,{analysis_status:'fallback',signals:d.signals,
+      analyzed_at:new Date().toISOString(),note:'判讀失敗：'+d.code}).catch(()=>{});
   }finally{waiting=false;}
 }
 
@@ -966,6 +1127,18 @@ devClose.onclick=()=>dev.classList.remove('on');
 document.getElementById('devSafe').onclick=()=>safe.classList.add('on');
 document.getElementById('safeClose').onclick=()=>safe.classList.remove('on');
 
+document.getElementById('archiveBtn').onclick=async()=>{
+  document.getElementById('archive').classList.add('on');await renderArchive();
+};
+document.getElementById('archiveClose').onclick=()=>{
+  document.getElementById('archive').classList.remove('on');
+  archiveUrls.forEach(URL.revokeObjectURL);archiveUrls=[];
+};
+document.getElementById('archiveClear').onclick=async()=>{
+  if(!confirm('確定清除這台裝置上的所有便便照片？無法復原。'))return;
+  await photoClear();await renderArchive();
+};
+
 /* 開場 */
 intro.addEventListener('click',()=>intro.remove());
 
@@ -1006,3 +1179,4 @@ requestAnimationFrame(loop);
 </script>
 </body>
 </html>
+

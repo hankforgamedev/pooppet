@@ -403,9 +403,54 @@ await check("收起來的判讀卡不會擋到拍照按鈕", async () => {
   await ctx.close();
 });
 
+// 本機照片簿：縮圖、時間、判讀標籤與電子雞狀態留在 IndexedDB
+await check("餵食照片與判讀標籤只保留在本機 IndexedDB", async () => {
+  const { ctx, page } = await fresh();
+  await feedOnce(page);
+  await page.waitForFunction(async () => (await photoList()).length === 1);
+  const row = await page.evaluate(async () => {
+    const [r] = await photoList();
+    return {
+      blobSize: r.image_blob.size,
+      captured_at: r.captured_at,
+      analysis_status: r.analysis_status,
+      bristol: r.bristol,
+      signals: r.signals,
+      pet_state_after: r.pet_state_after,
+    };
+  });
+  assert.ok(row.blobSize > 0, "本機縮圖不應該是空的");
+  assert.ok(Number.isFinite(Date.parse(row.captured_at)), "應保存拍攝日期時間");
+  assert.equal(row.analysis_status, "success");
+  assert.equal(row.bristol, "1");
+  assert.deepEqual(row.signals, ["stone"]);
+  assert.equal(row.pet_state_after, "normal", "第一次只記訊號，雞尚未變形");
+
+  await page.click("#archiveBtn");
+  assert.equal(await page.locator("#archiveList .archive-item").count(), 1);
+  assert.match(await page.textContent("#archiveList .archive-meta"), /Bristol 1/);
+  await ctx.close();
+});
+
+await check("照片簿跨重開保留，並可由使用者刪除", async () => {
+  const { ctx, page } = await fresh();
+  await feedOnce(page);
+  await page.waitForFunction(async () => (await photoList()).length === 1);
+  await page.reload();
+  await page.click("#intro");
+  assert.equal(await page.evaluate(async () => (await photoList()).length), 1);
+
+  await page.click("#archiveBtn");
+  await page.click("#archiveList .archive-delete");
+  assert.equal(await page.evaluate(async () => (await photoList()).length), 0);
+  assert.match(await page.textContent("#archiveList"), /還沒有照片/);
+  await ctx.close();
+});
+
 await browser.close();
 server.close();
 fs.unlinkSync(shot);
 
 console.log(results.join("\n"));
 console.log(process.exitCode ? "\nFAILED" : `\n${results.length} passed`);
+
