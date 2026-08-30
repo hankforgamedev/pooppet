@@ -1,0 +1,20 @@
+{
+  "name": "pooppet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "便便雞 — 排泄物電子雞 demo",
+  "scripts": {
+    "dev": "vercel dev",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/judge.test.mjs && node test/browser.mjs"
+  },
+  "dependencies": {
+    "openai": "^7.8.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@vercel/node": "^5.1.0",
+    "playwright": "^1.62.1",
+    "typescript": "^5.7.0"
+  }
+}

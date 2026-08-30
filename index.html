@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="便便雞">
+<meta name="theme-color" content="#0e1512">
+<title>便便雞</title>
+<style>
+  :root{
+    --shell:#cfd8cf;      /* 浴室磁磚灰綠 */
+    --grout:#aab5ab;
+    --lcd:#9ab07f;        /* LCD 液晶底 */
+    --lcd-dark:#6f8558;
+    --ink:#1b2318;
+    --btn:#e8e2d4;
+    --hot:#d8543a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{
+    background:var(--shell);
+    background-image:linear-gradient(var(--grout) 1px,transparent 1px),linear-gradient(90deg,var(--grout) 1px,transparent 1px);
+    background-size:44px 44px;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Helvetica Neue",sans-serif;
+    color:var(--ink);
+    display:flex;flex-direction:column;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    user-select:none;-webkit-user-select:none;
+  }
+
+  header{display:flex;align-items:center;gap:8px;padding:12px 16px 8px}
+  .brand{font-weight:800;font-size:15px;letter-spacing:.16em}
+  .count{font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#5d685c;margin-left:auto}
+  .gear,.chili{width:34px;height:34px;border:none;background:rgba(0,0,0,.06);border-radius:10px;
+    font-size:15px;line-height:34px;text-align:center;cursor:pointer;padding:0;color:inherit}
+  .chili{filter:grayscale(1);opacity:.45}
+  .chili.on{filter:none;opacity:1;background:rgba(216,84,58,.18)}
+
+  /* LCD 螢幕 —— 這是整個東西的主角 */
+  .device{flex:1;margin:0 14px;position:relative;border-radius:26px;
+    background:linear-gradient(#e6e9e2,#c8cfc6);
+    box-shadow:0 12px 0 #9aa39b, 0 16px 26px rgba(0,0,0,.22);
+    padding:14px;display:flex;min-height:0}
+  .screen{flex:1;position:relative;border-radius:14px;overflow:hidden;
+    background:var(--lcd);
+    box-shadow:inset 0 3px 12px rgba(0,0,0,.34);}
+  .screen::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:linear-gradient(rgba(0,0,0,.055) 1px,transparent 1px);
+    background-size:100% 3px;}
+  canvas{display:block;width:100%;height:100%}
+
+  .badge{position:absolute;top:10px;left:10px;z-index:3;
+    font:700 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;
+    background:rgba(27,35,24,.82);color:var(--lcd);padding:7px 10px;border-radius:7px}
+  .badge.think{animation:pulse 1.1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+  /* 判讀卡 */
+  .card{position:absolute;left:10px;right:10px;bottom:10px;z-index:4;
+    background:rgba(20,26,18,.94);color:#eef2e6;border-radius:14px;padding:14px 15px;
+    transform:translateY(140%);transition:transform .38s cubic-bezier(.2,.9,.3,1)}
+  .card.up{transform:none}
+  .card h2{font-size:17px;margin-bottom:5px}
+  .card p{font-size:13.5px;line-height:1.55;opacity:.92}
+  .card .say{margin-top:8px;font-size:13px;line-height:1.5;opacity:.8;
+    padding-left:9px;border-left:2px solid rgba(255,255,255,.28)}
+  .card .tip{margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.16);
+    font-size:11.5px;line-height:1.5;opacity:.62}
+
+  footer{padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
+  .row{display:flex;gap:10px}
+  .btn{flex:1;border:none;border-radius:15px;background:var(--btn);
+    box-shadow:0 4px 0 #b9b2a2;color:var(--ink);
+    font-size:15px;font-weight:700;padding:16px 8px;cursor:pointer}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 #b9b2a2}
+  .btn:disabled{opacity:.5}
+  .btn small{display:block;font-weight:500;font-size:10.5px;opacity:.5;margin-top:3px;letter-spacing:.06em}
+
+  /* 開場衛教 —— 唯一正經的一格 */
+  .intro{position:fixed;inset:0;z-index:50;background:rgba(14,21,18,.95);color:#eef2e6;
+    display:flex;flex-direction:column;justify-content:center;gap:14px;padding:40px 32px;font-size:15px;line-height:1.7}
+  .intro b{font-size:21px;display:block;margin-bottom:2px}
+  .intro span{opacity:.66;font-size:13px}
+  .intro em{font-style:normal;color:#ffb4a2}
+  .intro .go{margin-top:14px;font:700 12px/1 ui-monospace,Menlo,monospace;letter-spacing:.2em;opacity:.5}
+
+  /* Demo 控制台 */
+  .dev{position:fixed;inset:0;z-index:60;background:rgba(14,21,18,.9);display:none;
+    flex-direction:column;justify-content:flex-end;padding:18px;gap:8px;overflow-y:auto}
+  .dev.on{display:flex}
+  .dev p{color:#9fb195;font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;margin:6px 0 4px}
+  .dev button{border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:700;
+    background:#e8e2d4;color:#1b2318;text-align:left;cursor:pointer;width:100%}
+  .dev button.sel{background:var(--hot);color:#fff}
+  .dev button.ghost{background:rgba(255,255,255,.1);color:#eef2e6}
+  .dev .close{background:transparent;color:#9fb195;text-align:center;font-weight:600}
+
+  /* 常駐安全須知（Spec A：黑便/血便靠這頁，不靠偵測） */
+  .safe{position:fixed;inset:0;z-index:70;background:#0e1512;color:#eef2e6;display:none;
+    flex-direction:column;gap:16px;padding:44px 30px;font-size:15px;line-height:1.75;overflow-y:auto}
+  .safe.on{display:flex}
+  .safe h1{font-size:20px}
+  .safe em{font-style:normal;color:#ffb4a2}
+  .safe .muted{opacity:.6;font-size:13px;line-height:1.6}
+  .safe button{margin-top:auto;border:none;border-radius:12px;padding:15px;
+    background:#e8e2d4;color:#1b2318;font-size:15px;font-weight:700;cursor:pointer}
+  @media (prefers-reduced-motion:reduce){.card{transition:none}.badge.think{animation:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">便便雞</div>
+  <div class="count" id="count">今日餵食 0</div>
+  <button class="chili" id="chili" aria-label="這餐有吃辣" title="這餐有吃辣">🌶</button>
+  <button class="gear" id="gear" aria-label="demo 控制台">⚙</button>
+</header>
+
+<div class="device">
+  <div class="screen">
+    <div class="badge" id="badge">狀態：正常</div>
+    <canvas id="stage"></canvas>
+    <div class="card" id="card">
+      <h2 id="cardTitle"></h2>
+      <p id="cardLine"></p>
+      <div class="say" id="cardSay" hidden></div>
+      <div class="tip" id="cardTip"></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="row">
+    <button class="btn" id="camBtn">拍一張<small>CAMERA</small></button>
+    <button class="btn" id="libBtn">從相簿選<small>LIBRARY</small></button>
+  </div>
+</footer>
+
+<input type="file" accept="image/*" capture="environment" id="camIn" hidden>
+<input type="file" accept="image/*" id="libIn" hidden>
+
+<div class="intro" id="intro">
+  <div><b>我是雞，不是醫生。</b><span>這裡只會告訴你「大概吃太油」這種程度的事。</span></div>
+  <div><em>看到黑色柏油狀、或鮮紅色的血 —— 關掉這個 app，去看腸胃科。</em><span>那不是我能判斷的東西，我也不會假裝我能。</span></div>
+  <div class="go">點任何地方開始</div>
+</div>
+
+<div class="dev" id="dev">
+  <p>判讀來源</p>
+  <div id="devAi"></div>
+  <p>DEMO 控制台 — 指定下一次餵食的結果</p>
+  <div id="devBtns"></div>
+  <p>其他</p>
+  <button class="ghost" id="devSafe">安全須知</button>
+  <button class="close" id="devClose">關閉</button>
+</div>
+
+<div class="safe" id="safe">
+  <h1>看到這些，不要問雞</h1>
+  <div><em>黑色柏油狀、鮮紅色的血、持續好幾週的劇烈改變。</em>
+    這三種情況請直接去看腸胃科。</div>
+  <div class="muted">這個 app 只判斷形狀與質地（Bristol 1–7 與是否油亮）。
+    它<b>不會</b>偵測顏色，<b>不會</b>偵測血或黑便，也<b>不會</b>在你有問題的時候警告你。
+    沒有這個功能，不是還沒做，是刻意不做 —— 一個會漏判的警示功能，比沒有警示更危險。</div>
+  <div class="muted">這是娛樂與生活紀錄用途，不是醫療器材，不能用來診斷任何疾病。</div>
+  <button id="safeClose">我知道了</button>
+</div>
+
+<script>
+/* ---------- 精靈圖 ---------- */
+const SPRITE=[
+'................',
+'.......KK.......',
+'......KRRK......',
+'.....KRRRRK.....',
+'.....KWWWWK.....',
+'....KWWWWWWK....',
+'....KWEWWEWK....',
+'....KWWWWWWKYY..',
+'....KWWWWWWKY...',
+'...KWWWWWWWWK...',
+'..KWWWWWWWWWWK..',
+'..KWWWWWWWWWWK..',
+'..KWWWWWWWWWWK..',
+'...KWWWWWWWWK...',
+'....KKKKKKKK....',
+'.....Y....Y.....'
+].map(r=>r.padEnd(16,'.'));
+
+/* ---------- pixie.haus 圖檔（可選，沒有就用上面的內建雞） ----------
+   1. 在 pixie.haus 生一隻雞的 walk cycle，匯出 spritesheet（橫向排列、透明背景）
+   2. 檔名存成 chick.png，跟 index.html 放同一個資料夾
+   3. 把下面 frames 改成你的格數
+   圖沒放也不會壞，會自動退回內建像素雞。 */
+const ART={url:'chick.png',frames:4,fps:8};
+
+const TINT={
+  normal:null,
+  stone:{gray:true,c:'rgba(150,158,148,.45)'},
+  oily:{c:'rgba(240,205,70,.42)'},
+  spicy:{c:'rgba(255,72,40,.45)'},
+  perfect:{c:'rgba(255,222,110,.40)'},
+  watery:{c:'rgba(110,200,230,.50)'}
+};
+const SHEET={ready:false,img:null,fw:0,fh:0,tinted:{}};
+
+(function loadArt(){
+  const im=new Image();
+  im.onload=()=>{
+    SHEET.img=im;SHEET.fh=im.height;SHEET.fw=Math.floor(im.width/ART.frames);
+    for(const k in TINT){
+      const c=document.createElement('canvas');
+      c.width=im.width;c.height=im.height;
+      const x=c.getContext('2d');x.imageSmoothingEnabled=false;
+      x.drawImage(im,0,0);
+      const t=TINT[k];
+      if(t){
+        if(t.gray){
+          try{
+            const d=x.getImageData(0,0,c.width,c.height),p=d.data;
+            for(let i=0;i<p.length;i+=4){
+              const g=(p[i]*.3+p[i+1]*.59+p[i+2]*.11)|0;
+              p[i]=p[i+1]=p[i+2]=g;
+            }
+            x.putImageData(d,0,0);
+          }catch(e){/* file:// 會擋 getImageData，跳過灰階就好 */}
+        }
+        x.globalCompositeOperation='source-atop';
+        x.fillStyle=t.c;x.fillRect(0,0,c.width,c.height);
+        x.globalCompositeOperation='source-over';
+      }
+      SHEET.tinted[k]=c;
+    }
+    SHEET.ready=true;
+  };
+  im.onerror=()=>{};
+  im.src=ART.url;
+})();
+
+/* ---------- 五種狀態 ---------- */
+const STATES={
+  normal:{label:'正常',pal:{K:'#1f2a1a',W:'#f2f5e6',R:'#d8543a',Y:'#e8a52e',E:'#1f2a1a'},
+    speed:44,fx:null,title:'',line:'',tip:''},
+
+  stone:{label:'石化',pal:{K:'#2c302b',W:'#8f968b',R:'#6d746a',Y:'#79806f',E:'#23261f'},
+    speed:11,fx:'dust',
+    title:'牠石化了',
+    line:'這一坨硬得可以拿去鋪路。牠現在走一步要三秒，而且會掉碎屑。',
+    tip:'硬顆粒狀通常代表水分和纖維不足 — 腸道停留太久，水被吸乾了。'},
+
+  oily:{label:'油亮',pal:{K:'#4a3a12',W:'#f5dd72',R:'#d98a2b',Y:'#e0b32e',E:'#2b2118'},
+    speed:60,fx:'shine',
+    title:'牠在反光',
+    line:'滑得像剛上完蠟。走過的地方都有油印，而且牠站不太穩。',
+    tip:'油亮、會浮、特別臭，通常是脂肪沒被完全吸收。'},
+
+  spicy:{label:'噴火',pal:{K:'#5a1810',W:'#ff7a5e',R:'#ffd24a',Y:'#ffcf3a',E:'#2b0f08'},
+    speed:96,fx:'fire',
+    title:'牠在噴火',
+    line:'牠一邊跑一邊噴火，還在瞪你。你昨天到底吃了什麼。',
+    tip:'辣其實不會改變便便顏色，但會讓腸道蠕動變快。'},
+
+  perfect:{label:'完美',pal:{K:'#4a3a00',W:'#fff6c4',R:'#ff5a3a',Y:'#ffcf3a',E:'#2b2118'},
+    speed:52,fx:'spark',
+    title:'完美的一坨',
+    line:'香蕉型、滑順、一次成型。牠在發光，而且自己放起了煙火。',
+    tip:'Bristol 第 4 型，臨床上公認的理想狀態。'},
+
+  watery:{label:'液化',pal:{K:'#123a4a',W:'#8fd4e8',R:'#5aa8c4',Y:'#7ec8dd',E:'#0f2a35'},
+    speed:20,fx:'drip',
+    title:'牠融化了',
+    line:'牠變成一灘會晃的東西。你戳牠，牠會像果凍一樣抖。',
+    tip:'水狀代表通過太快，腸道來不及把水吸回去。'}
+};
+/* 優先序：問題訊號排在完美前面，兩個都達標時先演問題那個 */
+const ORDER=['stone','watery','oily','spicy','perfect'];
+const BURST={stone:['#8f968b','#6d746a'],oily:['#f5dd72','#fff'],spicy:['#ffd24a','#ff4a2a'],
+             perfect:['#fffbe0','#ffd24a','#ff5a3a'],watery:['#8fd4e8','#bfe8f5']};
+
+/* ---------- 判讀（Spec A：只判 Bristol 1-7 + 油亮/浮） ---------- */
+const HIST_KEY='pooppet.hist.v1';
+const AI_KEY='pooppet.ai.v1';
+
+/* 預設關著 —— Spec B 的現場零意外。要真判讀去 ⚙ 打開，選擇會記住。
+   file:// 沒有後端可打，一律 demo 模式。 */
+let aiOn=location.protocol!=='file:'&&localStorage.getItem(AI_KEY)==='1';
+let hist=loadHist();
+let spicy=false;
+
+function loadHist(){
+  try{const v=JSON.parse(localStorage.getItem(HIST_KEY));return Array.isArray(v)?v.slice(-3):[]}
+  catch(e){return[]}
+}
+function saveHist(){
+  try{localStorage.setItem(HIST_KEY,JSON.stringify(hist))}catch(e){}
+}
+
+/** Bristol + 油亮 → 訊號。3 與 5 不對應任何變形，回空陣列。 */
+function signalsOf(j,wasSpicy){
+  const out=[];
+  if(wasSpicy)out.push('spicy');
+  if(j&&j.is_stool){
+    if(j.oily)out.push('oily');
+    const b=parseInt(j.bristol,10);
+    if(b===1||b===2)out.push('stone');
+    else if(b===4)out.push('perfect');
+    else if(b===6||b===7)out.push('watery');
+  }
+  return out;
+}
+
+/** 累積制：最近 3 次裡 ≥2 次同訊號才變形。都沒達標就解除，變回正常。 */
+function cumulative(){
+  for(const k of ORDER)if(hist.filter(s=>s.indexOf(k)>=0).length>=2)return k;
+  return 'normal';
+}
+/** 還差一次就達標的訊號，拿來顯示進度 */
+function pendingSignal(){
+  for(const k of ORDER)if(hist.filter(s=>s.indexOf(k)>=0).length===1)return k;
+  return null;
+}
+
+/** 把照片縮到 1024px JPEG 再送 —— 手機原圖 8MB 會打爆 request body */
+function shrink(file,max){
+  max=max||1024;
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file),img=new Image();
+    img.onload=()=>{
+      const r=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(img.width*r));
+      c.height=Math.max(1,Math.round(img.height*r));
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      let data='';
+      try{data=c.toDataURL('image/jpeg',.82)}catch(e){/* tainted canvas，送不出去就算了 */}
+      resolve({img:img,url:url,data:data});
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('讀不到這張圖'))};
+    img.src=url;
+  });
+}
+
+async function judge(dataUrl){
+  const ctl=new AbortController();
+  const timer=setTimeout(()=>ctl.abort(),25000);
+  try{
+    const r=await fetch('/api/judge',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({image:dataUrl}),
+      signal:ctl.signal
+    });
+    const body=await r.json().catch(()=>null);
+    if(!r.ok)throw new Error((body&&body.code)||('http_'+r.status));
+    return body;
+  }finally{clearTimeout(timer);}
+}
+
+/* ---------- 場景 ---------- */
+const cv=document.getElementById('stage'),ctx=cv.getContext('2d');
+let W=0,H=0,ground=0;
+const chick={x:0,y:0,dir:1,t:0,target:null,wait:0,peck:0,mode:'idle',eatT:0,jitter:0};
+let state='normal',ball=null,parts=[],trail=[],photo=null,photoUrl=null,feeds=0,forced=null,glow=0;
+let result=null,waiting=false,flash=0,flashSig=null;
+
+function resize(){
+  const r=cv.parentElement.getBoundingClientRect();
+  const d=Math.min(window.devicePixelRatio||1,3);
+  W=r.width;H=r.height;
+  cv.width=Math.round(W*d);cv.height=Math.round(H*d);
+  ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=false;
+  ground=H*0.74;
+  if(!chick.x)chick.x=W/2;
+  chick.x=Math.max(40,Math.min(W-40,chick.x));
+  chick.y=ground;
+}
+addEventListener('resize',resize);
+
+function scale(){return Math.max(3,Math.min(7,Math.floor(Math.min(W,H)/46)));}
+
+function drawSprite(cx,by,s,pal,sx,sy,flip,alpha){
+  ctx.save();ctx.globalAlpha=alpha==null?1:alpha;
+  ctx.translate(cx,by);ctx.scale(flip?-1:1,1);ctx.scale(sx,sy);
+  for(let y=0;y<16;y++)for(let x=0;x<16;x++){
+    const c=SPRITE[y][x];if(c==='.')continue;
+    ctx.fillStyle=pal[c];
+    ctx.fillRect(Math.round((x-8)*s),Math.round((y-16)*s),Math.ceil(s),Math.ceil(s));
+  }
+  ctx.restore();
+}
+
+function drawChick(cx,by,s,sx,sy,flip){
+  if(!SHEET.ready){drawSprite(cx,by,s,STATES[state].pal,sx,sy,flip,1);return;}
+  const src=SHEET.tinted[state]||SHEET.tinted.normal;
+  const f=Math.floor(chick.t*ART.fps)%ART.frames;
+  const h=16*s,w=h*(SHEET.fw/SHEET.fh);
+  ctx.save();
+  ctx.translate(cx,by);ctx.scale(flip?-1:1,1);ctx.scale(sx,sy);
+  ctx.drawImage(src,f*SHEET.fw,0,SHEET.fw,SHEET.fh,-w/2,-h,w,h);
+  ctx.restore();
+}
+
+function beak(){const s=scale();return{x:chick.x+chick.dir*4.5*s,y:chick.y-8.5*s};}
+
+function emit(){
+  const b=beak(),s=scale(),f=STATES[state].fx;
+  if(f==='fire'&&Math.random()<0.55)
+    parts.push({x:b.x,y:b.y,vx:chick.dir*(50+Math.random()*90),vy:-20-Math.random()*40,l:.6,
+      c:['#ffd24a','#ff8a3a','#ff4a2a'][Math.random()*3|0],s:s*.6});
+  if(f==='spark'&&Math.random()<0.4)
+    parts.push({x:chick.x+(Math.random()-.5)*11*s,y:chick.y-Math.random()*15*s,vx:0,vy:-32,l:.9,
+      c:['#fffbe0','#ffd24a','#ffffff'][Math.random()*3|0],s:s*.5});
+  if(f==='dust'&&Math.random()<0.18)
+    parts.push({x:chick.x+(Math.random()-.5)*9*s,y:chick.y,vx:(Math.random()-.5)*22,vy:-12,l:.5,c:'#7c8478',s:s*.5});
+  if(f==='shine'&&Math.random()<0.22)
+    parts.push({x:chick.x+(Math.random()-.5)*11*s,y:chick.y-4*s-Math.random()*9*s,vx:0,vy:0,l:.32,c:'#ffffff',s:s*.6});
+  if(f==='drip'&&Math.random()<0.3)
+    parts.push({x:chick.x+(Math.random()-.5)*11*s,y:chick.y-2*s,vx:0,vy:34,l:.55,c:'#bfe8f5',s:s*.5});
+  if((f==='shine'||f==='drip')&&Math.random()<0.25)
+    trail.push({x:chick.x,y:chick.y,l:2.4,c:f==='shine'?'#d9c05a':'#7cc4dc'});
+}
+
+function burst(n,c){
+  const s=scale();
+  for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,v=60+Math.random()*160;
+    parts.push({x:chick.x,y:chick.y-8*s,vx:Math.cos(a)*v,vy:Math.sin(a)*v-40,l:.9,
+      c:c[Math.random()*c.length|0],s:s*.6});}
+}
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min((now-last)/1000,.05);last=now;
+  const S=STATES[state],s=scale();
+  chick.t+=dt;
+
+  /* 移動 */
+  if(chick.mode==='idle'){
+    const tx=ball?ball.x:chick.target;
+    if(tx!=null){
+      const d=tx-chick.x;
+      if(Math.abs(d)>7){
+        chick.dir=d>0?1:-1;
+        chick.x+=chick.dir*S.speed*dt;
+        chick.x=Math.max(30,Math.min(W-30,chick.x));
+      }else if(ball){
+        chick.peck=.3;
+        ball.vy=-230;ball.vx=chick.dir*130;
+      }else{chick.target=null;chick.wait=.7+Math.random()*2;}
+    }else{
+      chick.wait-=dt;
+      if(chick.wait<=0)chick.target=40+Math.random()*(W-80);
+    }
+  }
+  if(chick.peck>0)chick.peck-=dt;
+  chick.jitter=(state==='spicy'||flash>0&&flashSig==='spicy')?(Math.random()-.5)*2.2:0;
+
+  /* 球 */
+  if(ball){
+    ball.vy+=900*dt;ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;ball.vx*=.985;
+    if(ball.y>ground){ball.y=ground;ball.vy*=-.52;if(Math.abs(ball.vy)<40)ball.vy=0;}
+    if(ball.x<10||ball.x>W-10){ball.vx*=-.7;ball.x=Math.max(10,Math.min(W-10,ball.x));}
+  }
+
+  /* 餵食流程：咬三下之後，等判讀回來才揭曉 */
+  if(chick.mode==='eat'){
+    chick.eatT+=dt;
+    if(chick.eatT>1.75&&!waiting){
+      chick.mode='idle';
+      applyFeed(result);result=null;
+    }
+  }
+
+  if(state!=='normal'&&chick.mode==='idle')emit();
+  if(flash>0)flash-=dt;
+
+  /* 粒子 */
+  for(const p of parts){p.l-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=260*dt;}
+  parts=parts.filter(p=>p.l>0).slice(-220);
+  for(const t of trail)t.l-=dt;
+  trail=trail.filter(t=>t.l>0).slice(-40);
+  if(glow>0)glow-=dt*.8;
+
+  /* ---- 繪製 ---- */
+  ctx.clearRect(0,0,W,H);
+
+  ctx.fillStyle='rgba(31,42,26,.14)';
+  ctx.fillRect(0,ground+s*.6,W,Math.max(2,s*.4));
+
+  for(const t of trail){ctx.globalAlpha=Math.min(t.l/2.4,.5);ctx.fillStyle=t.c;
+    ctx.fillRect(t.x-s*1.6,t.y-s*.3,s*3.2,s*.7);}
+  ctx.globalAlpha=1;
+
+  if(glow>0){
+    const g=ctx.createRadialGradient(chick.x,chick.y-8*s,0,chick.x,chick.y-8*s,26*s);
+    g.addColorStop(0,'rgba(255,238,150,'+(glow*.5).toFixed(3)+')');
+    g.addColorStop(1,'rgba(255,238,150,0)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  }
+  if(state==='perfect'){
+    const p=(Math.sin(chick.t*2.2)+1)/2;
+    const g=ctx.createRadialGradient(chick.x,chick.y-8*s,0,chick.x,chick.y-8*s,20*s);
+    g.addColorStop(0,'rgba(255,244,180,'+(0.10+p*0.13).toFixed(3)+')');
+    g.addColorStop(1,'rgba(255,244,180,0)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  }
+  if(state==='watery'){
+    ctx.fillStyle='rgba(120,200,224,.4)';
+    ctx.beginPath();ctx.ellipse(chick.x,ground+s*.5,12*s,2.4*s,0,0,7);ctx.fill();
+  }
+
+  if(ball){ctx.fillStyle='#3d4a34';ctx.fillRect(Math.round(ball.x-s),Math.round(ball.y-s*2),s*2,s*2);}
+
+  /* 雞 */
+  let sx=1,sy=1,by=chick.y;
+  const moving=chick.mode==='idle'&&((ball&&Math.abs(ball.x-chick.x)>7)||chick.target!=null);
+  const bob=moving?Math.abs(Math.sin(chick.t*(state==='stone'?3:9)))*(state==='stone'?.6:1.6)*s:
+                   Math.abs(Math.sin(chick.t*2.4))*.5*s;
+  by-=bob;
+  if(state==='watery'){sx=1.24+Math.sin(chick.t*5)*.06;sy=.74+Math.sin(chick.t*5)*.05;}
+  if(state==='stone'){sx=1.03;sy=.98;}
+  if(state==='perfect'){const h=Math.abs(Math.sin(chick.t*3.4));by-=h*2.6*s;sy=1+h*.06;}
+  if(chick.peck>0){sy=.84;sx=1.12;}
+  if(chick.mode==='eat'){
+    const c=Math.sin(chick.eatT*22);
+    if(chick.eatT>1.15){sy=1+c*.16;sx=1-c*.13;}
+  }
+  drawChick(chick.x+chick.jitter,by,s,sx,sy,chick.dir<0);
+
+  if(state==='stone'&&!SHEET.ready){
+    ctx.fillStyle='rgba(30,34,28,.55)';
+    ctx.fillRect(chick.x-3*s,by-9*s,s,4*s);
+    ctx.fillRect(chick.x-1*s,by-6*s,3*s,s);
+    ctx.fillRect(chick.x+3*s,by-12*s,s,3*s);
+  }
+
+  for(const p of parts){ctx.globalAlpha=Math.max(0,Math.min(1,p.l*2));ctx.fillStyle=p.c;
+    ctx.fillRect(Math.round(p.x),Math.round(p.y),Math.ceil(p.s),Math.ceil(p.s));}
+  ctx.globalAlpha=1;
+
+  /* 飛進來的照片 */
+  if(chick.mode==='eat'&&photo){
+    const k=Math.min(chick.eatT/1.15,1),e=1-Math.pow(1-k,3);
+    const b=beak();
+    const px=W/2+(b.x-W/2)*e, py=H*.16+(b.y-H*.16)*e;
+    const sz=(Math.min(W,H)*.34)*(1-e*.86);
+    ctx.save();ctx.translate(px,py);ctx.rotate((1-e)*-.16);
+    ctx.globalAlpha=k>.94?(1-(k-.94)/.06):1;
+    ctx.fillStyle='#f2f5e6';ctx.fillRect(-sz/2-3,-sz/2-3,sz+6,sz+6);
+    ctx.drawImage(photo,-sz/2,-sz/2,sz,sz);
+    ctx.restore();ctx.globalAlpha=1;
+  }
+
+  requestAnimationFrame(loop);
+}
+
+/* ---------- 互動 ---------- */
+cv.addEventListener('pointerdown',e=>{
+  const r=cv.getBoundingClientRect();
+  ball={x:e.clientX-r.left,y:e.clientY-r.top,vx:0,vy:0};
+  chick.target=null;
+});
+
+const badge=document.getElementById('badge');
+function setBadge(text,thinking){
+  badge.textContent=text;
+  badge.classList.toggle('think',!!thinking);
+}
+function refreshBadge(){
+  const p=state==='normal'?pendingSignal():null;
+  setBadge('狀態：'+STATES[state].label+(p?' · '+STATES[p].label+' 1/2':''),false);
+}
+
+function showCard(title,line,say,tip){
+  const c=document.getElementById('card'),sayEl=document.getElementById('cardSay');
+  document.getElementById('cardTitle').textContent=title;
+  document.getElementById('cardLine').textContent=line;
+  sayEl.textContent=say||'';sayEl.hidden=!say;
+  document.getElementById('cardTip').textContent=tip;
+  c.classList.add('up');
+  clearTimeout(showCard.t);
+  showCard.t=setTimeout(()=>c.classList.remove('up'),7500);
+}
+document.getElementById('card').addEventListener('click',e=>e.currentTarget.classList.remove('up'));
+
+function transform(k,say,tip){
+  state=k;glow=1;burst(30,BURST[k]);
+  const S=STATES[k];
+  showCard(S.title,S.line,say,tip||S.tip);
+  refreshBadge();
+}
+
+/** 一秒的即時反應 —— 還沒達到變形門檻時，只給這個 */
+function instant(sig){
+  flash=1;flashSig=sig;
+  burst(14,BURST[sig]);
+  setBadge('剛剛：'+STATES[sig].label+'訊號',false);
+  setTimeout(refreshBadge,1000);
+}
+
+function applyFeed(res){
+  res=res||{signals:[],source:'demo'};
+  const say=res.note||'';
+  let tipExtra='';
+  if(res.source==='demo')tipExtra=' ／ demo 模式，判讀是隨機的。';
+  else if(res.source==='fallback')tipExtra=' ／ 判讀連不上（'+res.code+'），這次是隨機的。';
+
+  /* ⚙ 指定：立刻生效，不等累積。Spec B 的現場零意外。 */
+  if(res.forced){
+    hist.push([res.forced]);if(hist.length>3)hist.shift();saveHist();
+    transform(res.forced,say,STATES[res.forced].tip+' ／ ⚙ 指定。');
+    return;
+  }
+
+  const sigs=res.signals||[];
+  hist.push(sigs);if(hist.length>3)hist.shift();saveHist();
+
+  /* 不是便便 —— 雞照吃，但不記帳 */
+  if(res.notStool){
+    burst(12,['#f2f5e6','#e8a52e']);
+    showCard('這不是便便','雞還是吃了，但牠什麼都判斷不出來。',say,
+      '判讀範圍只有形狀與質地（Bristol 1–7 與是否油亮）。'+tipExtra);
+    refreshBadge();
+    return;
+  }
+
+  const next=cumulative();
+  if(next!==state){
+    if(next==='normal'){
+      state='normal';parts=[];trail=[];glow=0;
+      showCard('牠解除了','訊號斷了，牠變回一隻普通的雞。',say,
+        '最近 3 次裡沒有任何訊號達到 2 次。'+tipExtra);
+      refreshBadge();
+    }else{
+      transform(next,say,STATES[next].tip+tipExtra);
+    }
+    return;
+  }
+
+  /* 沒有跨過門檻：只給一秒的即時反應 */
+  if(sigs.length){
+    instant(sigs[0]);
+    const p=STATES[sigs[0]];
+    showCard('記下來了','再一次同樣的訊號，牠就會變成「'+p.title.replace(/^牠/,'')+'」。',say,
+      '變形是累積的 —— 最近 3 次裡要有 2 次同訊號。'+tipExtra);
+  }else{
+    showCard('還行','沒什麼好演的，牠繼續走來走去。',say,
+      'Bristol 3 與 5 不對應任何變形。'+tipExtra);
+  }
+}
+
+async function feed(file){
+  if(!file||chick.mode==='eat')return;
+  let shrunk;
+  try{shrunk=await shrink(file)}catch(e){return}
+
+  if(photoUrl)URL.revokeObjectURL(photoUrl);
+  photo=shrunk.img;photoUrl=shrunk.url;
+  chick.mode='eat';chick.eatT=0;ball=null;chick.target=null;
+  parts=[];trail=[];
+  feeds++;document.getElementById('count').textContent='今日餵食 '+feeds;
+  document.getElementById('card').classList.remove('up');
+
+  const wasSpicy=spicy;
+  setSpicy(false);
+
+  /* ⚙ 指定優先，完全不打 API */
+  if(forced){
+    result={forced:forced,source:'forced'};forced=null;
+    devBtns.querySelectorAll('button').forEach(b=>b.classList.remove('sel'));
+    return;
+  }
+
+  const demo=()=>({
+    signals:signalsOf({is_stool:true,
+      bristol:String(1+Math.random()*7|0),
+      oily:Math.random()<.2},wasSpicy),
+    source:'demo'});
+
+  if(!aiOn||!shrunk.data){result=demo();return;}
+
+  waiting=true;setBadge('判讀中…',true);
+  try{
+    const j=await judge(shrunk.data);
+    result={signals:signalsOf(j,wasSpicy),note:j.note,
+      notStool:!j.is_stool,source:'ai',confidence:j.confidence};
+  }catch(e){
+    const d=demo();d.source='fallback';d.code=e.message||'unknown';
+    result=d;
+  }finally{waiting=false;}
+}
+
+camBtn.onclick=()=>camIn.click();
+libBtn.onclick=()=>libIn.click();
+camIn.onchange=e=>{feed(e.target.files[0]);e.target.value='';};
+libIn.onchange=e=>{feed(e.target.files[0]);e.target.value='';};
+
+/* 辣 —— Spec A：辣是用戶自填，不是 AI 判的 */
+function setSpicy(v){
+  spicy=v;
+  document.getElementById('chili').classList.toggle('on',v);
+}
+document.getElementById('chili').onclick=()=>setSpicy(!spicy);
+
+/* 控制台 */
+const devBtns=document.getElementById('devBtns');
+[['隨機',null]].concat(ORDER.map(k=>[STATES[k].label+' — '+STATES[k].title,k])).forEach(([t,k])=>{
+  const b=document.createElement('button');b.textContent=t;b.dataset.k=k||'';
+  b.onclick=()=>{forced=k;[...devBtns.children].forEach(x=>x.classList.remove('sel'));b.classList.add('sel');};
+  devBtns.appendChild(b);
+});
+const rb=document.createElement('button');rb.textContent='重設成正常（清空累積）';
+rb.onclick=()=>{state='normal';parts=[];trail=[];glow=0;hist=[];saveHist();
+  refreshBadge();
+  document.getElementById('card').classList.remove('up');dev.classList.remove('on');};
+devBtns.appendChild(rb);
+
+const aiBtn=document.createElement('button');
+function paintAi(){
+  aiBtn.textContent=aiOn?'AI 判讀：開（真的打模型）':'AI 判讀：關（隨機，demo 模式）';
+  aiBtn.classList.toggle('sel',aiOn);
+}
+aiBtn.onclick=()=>{aiOn=!aiOn;try{localStorage.setItem(AI_KEY,aiOn?'1':'0')}catch(e){}paintAi();};
+paintAi();
+document.getElementById('devAi').appendChild(aiBtn);
+
+gear.onclick=()=>dev.classList.add('on');
+devClose.onclick=()=>dev.classList.remove('on');
+document.getElementById('devSafe').onclick=()=>safe.classList.add('on');
+document.getElementById('safeClose').onclick=()=>safe.classList.remove('on');
+
+/* 開場 */
+intro.addEventListener('click',()=>intro.remove());
+
+/* PWA：執行期產生 manifest 與圖示 */
+(function(){
+  const c=document.createElement('canvas');c.width=c.height=192;
+  const x=c.getContext('2d');x.imageSmoothingEnabled=false;
+  x.fillStyle='#9ab07f';x.fillRect(0,0,192,192);
+  const p=STATES.normal.pal,u=10;
+  for(let yy=0;yy<16;yy++)for(let xx=0;xx<16;xx++){
+    const ch=SPRITE[yy][xx];if(ch==='.')continue;
+    x.fillStyle=p[ch];x.fillRect(16+xx*u,16+yy*u,u,u);
+  }
+  const icon=c.toDataURL('image/png');
+  const l=document.createElement('link');l.rel='apple-touch-icon';l.href=icon;document.head.appendChild(l);
+  const m={name:'便便雞',short_name:'便便雞',start_url:'.',display:'standalone',
+    background_color:'#0e1512',theme_color:'#0e1512',
+    icons:[{src:icon,sizes:'192x192',type:'image/png',purpose:'any'}]};
+  const ml=document.createElement('link');ml.rel='manifest';
+  ml.href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/manifest+json'}));
+  document.head.appendChild(ml);
+})();
+
+resize();chick.x=W/2;chick.y=ground;
+state=cumulative();refreshBadge();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
