@@ -362,6 +362,38 @@ await check("預設倒數是 30 秒", async () => {
   await ctx.close();
 });
 
+// 21. 馬桶外框：雞不能走進陶瓷裡，收起來的卡片不能擋到按鈕
+await check("雞被關在橢圓水面裡，走不進陶瓷", async () => {
+  const { ctx, page } = await fresh();
+  const r = await page.evaluate(() => {
+    const b = bounds();
+    // 邊界必須落在該高度的橢圓寬度之內
+    const half = halfAt(ground);
+    return { lo: b.lo, hi: b.hi, left: W / 2 - half, right: W / 2 + half, W };
+  });
+  assert.ok(r.lo > r.left, `左界要在水面內：${r.lo} vs ${r.left}`);
+  assert.ok(r.hi < r.right, `右界要在水面內：${r.hi} vs ${r.right}`);
+  // 走一段時間之後仍然在界內
+  await page.waitForTimeout(2500);
+  const x = await page.evaluate(() => chick.x);
+  assert.ok(x >= r.lo - 1 && x <= r.hi + 1, `雞跑出界了：${x}`);
+  await ctx.close();
+});
+
+await check("收起來的判讀卡不會擋到拍照按鈕", async () => {
+  const { ctx, page } = await fresh();
+  const st = await page.evaluate(() => {
+    const c = getComputedStyle(document.getElementById("card"));
+    return { visibility: c.visibility, opacity: c.opacity, pointerEvents: c.pointerEvents };
+  });
+  assert.equal(st.visibility, "hidden");
+  assert.equal(st.opacity, "0");
+  assert.equal(st.pointerEvents, "none");
+  // 按鈕真的按得到
+  await page.click("#camBtn", { trial: true });
+  await ctx.close();
+});
+
 await browser.close();
 server.close();
 fs.unlinkSync(shot);

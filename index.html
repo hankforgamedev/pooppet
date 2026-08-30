@@ -40,14 +40,36 @@
   .chili{filter:grayscale(1);opacity:.45}
   .chili.on{filter:none;opacity:1;background:rgba(216,84,58,.18)}
 
-  /* LCD 螢幕 —— 這是整個東西的主角 */
-  .device{flex:1;margin:0 14px;position:relative;border-radius:26px;
-    background:linear-gradient(#e6e9e2,#c8cfc6);
-    box-shadow:0 12px 0 #9aa39b, 0 16px 26px rgba(0,0,0,.22);
-    padding:14px;display:flex;min-height:0}
-  .screen{flex:1;position:relative;border-radius:14px;overflow:hidden;
+  /* 馬桶 —— 俯視角。白色陶瓷包著綠色的水，雞住在水裡 */
+  .device{flex:1;margin:0 14px;min-height:0;
+    display:flex;flex-direction:column;align-items:center}
+
+  /* 水箱 */
+  .tank{flex:none;width:56%;height:44px;
+    background:linear-gradient(#f8faf7,#dbe1db);
+    border-radius:16px 16px 7px 7px;
+    box-shadow:0 3px 0 #b2bbb2, inset 0 2px 0 rgba(255,255,255,.95);
+    position:relative}
+  /* 沖水鈕：故意做成內凹的陶瓷細節，不是可以按的東西 */
+  .flush{position:absolute;top:13px;left:50%;transform:translateX(-50%);
+    width:36px;height:15px;border-radius:8px;
+    background:linear-gradient(#e0e6df,#c9d1c9);
+    box-shadow:inset 0 2px 3px rgba(0,0,0,.24),0 1px 0 rgba(255,255,255,.8)}
+
+  /* 馬桶本體：上窄下寬的蛋形 */
+  .bowl{flex:1;width:100%;min-height:0;position:relative;margin-top:-7px;
+    padding:20px 20px 26px;display:flex;
+    background:linear-gradient(158deg,#f9fbf8,#d8dfd8);
+    border-radius:46% 46% 44% 44% / 33% 33% 57% 57%;
+    box-shadow:0 12px 0 #b0b9b0, 0 18px 30px rgba(0,0,0,.24),
+               inset 0 4px 0 rgba(255,255,255,.95),
+               inset 0 -10px 16px rgba(0,0,0,.06)}
+
+  /* 水面 */
+  .screen{flex:1;position:relative;overflow:hidden;
     background:var(--lcd);
-    box-shadow:inset 0 3px 12px rgba(0,0,0,.34);}
+    border-radius:47% 47% 45% 45% / 34% 34% 57% 57%;
+    box-shadow:inset 0 5px 16px rgba(0,0,0,.4);}
   .screen::after{content:"";position:absolute;inset:0;pointer-events:none;
     background-image:linear-gradient(rgba(0,0,0,.055) 1px,transparent 1px);
     background-size:100% 3px;}
@@ -55,10 +77,12 @@
 
 
   /* 判讀卡 */
-  .card{position:absolute;left:10px;right:10px;bottom:10px;z-index:4;
+  .card{position:absolute;left:16px;right:16px;bottom:16px;z-index:4;
     background:rgba(20,26,18,.94);color:#eef2e6;border-radius:14px;padding:14px 15px;
-    transform:translateY(140%);transition:transform .38s cubic-bezier(.2,.9,.3,1)}
-  .card.up{transform:none}
+    transform:translateY(24%);opacity:0;visibility:hidden;pointer-events:none;
+    transition:transform .38s cubic-bezier(.2,.9,.3,1),opacity .26s,visibility 0s .38s}
+  .card.up{transform:none;opacity:1;visibility:visible;pointer-events:auto;
+    transition:transform .38s cubic-bezier(.2,.9,.3,1),opacity .2s,visibility 0s}
   .card h2{font-size:17px;margin-bottom:5px}
   .card p{font-size:13.5px;line-height:1.55;opacity:.92}
   .card .say{margin-top:8px;font-size:13px;line-height:1.5;opacity:.8;
@@ -103,7 +127,7 @@
   .safe .muted{opacity:.6;font-size:13px;line-height:1.6}
   .safe button{margin-top:auto;border:none;border-radius:12px;padding:15px;
     background:#e8e2d4;color:#1b2318;font-size:15px;font-weight:700;cursor:pointer}
-  @media (prefers-reduced-motion:reduce){.card{transition:none}}
+  @media (prefers-reduced-motion:reduce){.card,.card.up{transition:none}}
 </style>
 </head>
 <body>
@@ -116,8 +140,11 @@
 </header>
 
 <div class="device">
-  <div class="screen">
-    <canvas id="stage"></canvas>
+  <div class="tank"><i class="flush"></i></div>
+  <div class="bowl">
+    <div class="screen">
+      <canvas id="stage"></canvas>
+    </div>
     <div class="card" id="card">
       <h2 id="cardTitle"></h2>
       <p id="cardLine"></p>
@@ -402,12 +429,24 @@ function resize(){
   ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=false;
   ground=H*0.74;
   if(!chick.x)chick.x=W/2;
-  chick.x=Math.max(40,Math.min(W-40,chick.x));
+  const b=bounds();
+  chick.x=Math.max(b.lo,Math.min(b.hi,chick.x));
   chick.y=ground;
 }
 addEventListener('resize',resize);
 
 function scale(){return Math.max(3,Math.min(7,Math.floor(Math.min(W,H)/46)));}
+
+/* 水面是橢圓的，牆壁在哪要看高度。半寬 = 這個 y 的橢圓寬度。 */
+function halfAt(y){
+  const dy=(y-H/2)/(H/2);
+  return (W/2)*Math.sqrt(Math.max(0,1-dy*dy));
+}
+/** 雞在地面那條線上能走的左右界，留一點邊免得半個身體插進陶瓷裡 */
+function bounds(){
+  const half=halfAt(ground),m=Math.min(30,half*.2);
+  return{lo:W/2-half+m,hi:W/2+half-m};
+}
 
 function drawSprite(cx,by,s,pal,sx,sy,flip,alpha){
   ctx.save();ctx.globalAlpha=alpha==null?1:alpha;
@@ -492,7 +531,8 @@ function loop(now){
       if(Math.abs(d)>7){
         chick.dir=d>0?1:-1;
         chick.x+=chick.dir*S.speed*dt;
-        chick.x=Math.max(30,Math.min(W-30,chick.x));
+        const b=bounds();
+        chick.x=Math.max(b.lo,Math.min(b.hi,chick.x));
       }else if(ball){
         chick.peck=.3;
         ball.vy=-230;ball.vx=chick.dir*130;
@@ -501,7 +541,7 @@ function loop(now){
       }else{chick.target=null;chick.wait=.7+Math.random()*2;}
     }else{
       chick.wait-=dt;
-      if(chick.wait<=0)chick.target=40+Math.random()*(W-80);
+      if(chick.wait<=0){const b=bounds();chick.target=b.lo+Math.random()*(b.hi-b.lo);}
     }
   }
   if(chick.peck>0)chick.peck-=dt;
@@ -511,7 +551,9 @@ function loop(now){
   if(ball){
     ball.vy+=900*dt;ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;ball.vx*=.985;
     if(ball.y>ground){ball.y=ground;ball.vy*=-.52;if(Math.abs(ball.vy)<40)ball.vy=0;}
-    if(ball.x<10||ball.x>W-10){ball.vx*=-.7;ball.x=Math.max(10,Math.min(W-10,ball.x));}
+    /* 球撞的是它自己那個高度的水面邊緣 */
+    const bh=Math.max(8,halfAt(ball.y)-6),lo=W/2-bh,hi=W/2+bh;
+    if(ball.x<lo||ball.x>hi){ball.vx*=-.7;ball.x=Math.max(lo,Math.min(hi,ball.x));}
   }
 
   /* ---- 牠自己的便便 ----
@@ -684,7 +726,8 @@ function startPoop(){
 function dropPoop(){
   const s=scale();
   /* 雞半個身體是 8*s，往後放 7.5*s 才不會被牠自己擋住 */
-  const x=Math.max(20,Math.min(W-20,chick.x-chick.dir*7.5*s));
+  const b=bounds();
+  const x=Math.max(b.lo,Math.min(b.hi,chick.x-chick.dir*7.5*s));
   poops.push({x:x,age:0,t:0});
   savePoop();
   showCard('牠大便了','比你餵牠的那坨小很多。牠自己也知道，所以牠不會拍照。','',
@@ -911,7 +954,7 @@ addEventListener('pagehide',savePoop);
 resize();chick.x=W/2;chick.y=ground;
 loadPoop();
 /* 存的 x 是像素，換裝置或轉向之後要拉回畫面內 */
-for(const q of poops)q.x=Math.max(20,Math.min(W-20,q.x));
+(function(){const b=bounds();for(const q of poops)q.x=Math.max(b.lo,Math.min(b.hi,q.x));})();
 if(poopDue&&!poopIn)poopIn=2.5;
 state=cumulative();
 requestAnimationFrame(loop);
