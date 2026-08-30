@@ -238,6 +238,115 @@ await check("預設 AI 判讀是關的 → 不打 API", async () => {
   await ctx.close();
 });
 
+// 12-17. 牠自己的便便
+await check("餵 4 次 → 欠一次大便，而且是在畫面上大出來的", async () => {
+  const { ctx, page } = await fresh();
+  for (let i = 0; i < 3; i++) await feedOnce(page);
+  assert.equal(await page.evaluate(() => poopDue), false, "第 3 次還不該欠");
+  assert.equal(await page.evaluate(() => poops.length), 0);
+  await feedOnce(page);
+  assert.equal(await page.evaluate(() => poopDue), true, "第 4 次之後該欠一次");
+  // 欠著不代表已經大了 —— 要等牠閒下來、在畫面上蹲完才算
+  await page.waitForFunction(() => poops.length === 1, null, { timeout: 15000 });
+  assert.equal(await page.evaluate(() => poopDue), false);
+  await ctx.close();
+});
+
+await check("牠自己大的比餵進去的小很多", async () => {
+  const { ctx, page } = await fresh();
+  const size = await page.evaluate(() => {
+    const s = scale();
+    // 牠自己大的：8 格 × s*0.55
+    const own = 8 * Math.max(1, s * 0.55);
+    // 餵進去的那張：飛進來時是 34% 短邊，跟雞差不多高
+    const fed = Math.min(W, H) * 0.34;
+    return { own, fed, chick: 16 * s };
+  });
+  assert.ok(size.own < size.chick * 0.45, `自己大的應該明顯小於雞：${size.own} vs ${size.chick}`);
+  assert.ok(size.fed > size.chick * 0.8, `餵進去的應該跟雞差不多大：${size.fed} vs ${size.chick}`);
+  await ctx.close();
+});
+
+await check("點便便可以清掉，而且不會順便丟球", async () => {
+  const { ctx, page } = await fresh();
+  await page.evaluate(() => { poopDue = true; poopIn = 0; ball = null; });
+  await page.waitForFunction(() => poops.length === 1, null, { timeout: 15000 });
+  const box = await page.evaluate(() => {
+    const r = document.getElementById("stage").getBoundingClientRect();
+    return { x: r.left + poops[0].x, y: r.top + ground - scale() * 2 };
+  });
+  await page.mouse.click(box.x, box.y);
+  assert.equal(await page.evaluate(() => poops.length), 0, "應該清掉了");
+  assert.equal(await page.evaluate(() => ball), null, "清便便不該同時丟球");
+  await ctx.close();
+});
+
+await check("放著不清 → 倒數歸零之後牠自己吃掉", async () => {
+  const { ctx, page } = await fresh();
+  await page.evaluate(() => {
+    CLEAN_SEC = 1.5;            // 測試不等 60 秒
+    poopDue = true; poopIn = 0; ball = null;
+  });
+  await page.waitForFunction(() => poops.length === 1, null, { timeout: 15000 });
+  await page.waitForFunction(() => poops.length === 0, null, { timeout: 20000 });
+  assert.match(await page.textContent("#cardTitle"), /吃掉/);
+  await ctx.close();
+});
+
+await check("切到背景時倒數凍結，不在後台偷跑", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 780 } });
+  const page = await ctx.newPage();
+  await page.goto(base);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.click("#intro");
+  await page.evaluate(() => { poopDue = true; poopIn = 0; ball = null; });
+  await page.waitForFunction(() => poops.length === 1, null, { timeout: 15000 });
+
+  // 假裝使用者切走：visibilityState 變 hidden
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  const before = await page.evaluate(() => poops[0].age);
+  await page.waitForTimeout(1500);
+  const after = await page.evaluate(() => poops[0].age);
+  assert.ok(after - before < 0.2, `背景時倒數不該前進：${before} → ${after}`);
+
+  // 回到前景，倒數繼續
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.waitForTimeout(800);
+  assert.ok(await page.evaluate(() => poops[0].age) > after + 0.3, "回到前景要繼續算");
+  await ctx.close();
+});
+
+await check("地上的便便跨重開還在，倒數接著算", async () => {
+  const { ctx, page } = await fresh();
+  await page.evaluate(() => { poopDue = true; poopIn = 0; ball = null; });
+  await page.waitForFunction(() => poops.length === 1, null, { timeout: 15000 });
+  await page.waitForTimeout(600);
+  const age = await page.evaluate(() => poops[0].age);
+  await page.reload();
+  await page.click("#intro");
+  assert.equal(await page.evaluate(() => poops.length), 1, "重開之後便便還在");
+  assert.ok(await page.evaluate(() => poops[0].age) >= age - 0.5, "累積的時間要留著");
+  await ctx.close();
+});
+
+await check("⚙ 馬上大便 + 清掉地上全部", async () => {
+  const { ctx, page } = await fresh();
+  await page.click("#gear");
+  await page.click("#devPoop button:nth-child(1)");
+  await page.waitForFunction(() => poops.length === 1, null, { timeout: 15000 });
+  await page.click("#gear");
+  await page.click("#devPoop button:nth-child(3)");
+  assert.equal(await page.evaluate(() => poops.length), 0);
+  await ctx.close();
+});
+
 await browser.close();
 server.close();
 fs.unlinkSync(shot);
